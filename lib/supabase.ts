@@ -59,34 +59,38 @@ if (!supabaseServiceKey || supabaseServiceKey.includes('dummy')) {
   
   supabaseAdmin = {
     from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: () => Promise.resolve({ data: null, error: null }),
-          order: () => ({
-            limit: () => Promise.resolve({ data: [], error: null })
-          })
-        }),
-        gte: () => ({
-          lt: () => Promise.resolve({ data: [], error: null })
-        }),
-        in: () => ({
-          order: () => ({
-            limit: () => Promise.resolve({ data: [], error: null })
-          })
-        }),
-        insert: () => ({
-          select: () => ({
-            single: () => Promise.resolve({ data: { id: 'dummy' }, error: null })
-          })
-        }),
-        update: () => ({
+      select: () => {
+        const chainable: any = {
           eq: () => ({
+            single: () => Promise.resolve({ data: null, error: null }),
+            in: () => Promise.resolve({ data: [], error: null }),
+            order: () => ({
+              limit: () => Promise.resolve({ data: [], error: null })
+            })
+          }),
+          gte: () => ({
+            lt: () => Promise.resolve({ data: [], error: null })
+          }),
+          in: () => ({
+            order: () => ({
+              limit: () => Promise.resolve({ data: [], error: null })
+            })
+          }),
+          insert: () => ({
             select: () => ({
               single: () => Promise.resolve({ data: { id: 'dummy' }, error: null })
             })
+          }),
+          update: () => ({
+            eq: () => ({
+              select: () => ({
+                single: () => Promise.resolve({ data: { id: 'dummy' }, error: null })
+              })
+            })
           })
-        })
-      })
+        }
+        return chainable
+      }
     })
   }
 } else {

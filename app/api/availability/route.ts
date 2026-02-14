@@ -108,7 +108,23 @@ function checkSlot(
   return { available: true }
 }
 
-// ─── Route handler ───────────────────────────────────────────────────────────
+// ─── GET: health-check ───────────────────────────────────────────────────────
+
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    message: 'availability endpoint alive',
+    howTo: 'Use POST with {fecha,hora,personas,event_type}',
+    example: {
+      fecha: '2026-03-15',
+      hora: '14:00',
+      personas: 2,
+      event_type: 'GRUPO_SENTADO',
+    },
+  })
+}
+
+// ─── POST: availability check ────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse<AvailabilityResponse | { error: string }>> {
   let body: unknown
@@ -127,55 +143,57 @@ export async function POST(req: NextRequest): Promise<NextResponse<AvailabilityR
 
   const { fecha, hora, personas, event_type } = parsed.data
 
-  // Consultar reservas activas de esa fecha
-  const { data: reservations, error: dbError } = await supabaseAdmin
-    .from('reservations')
-    .select('id, fecha, hora_inicio, hora_fin, personas, event_type, status, is_exclusive')
-    .eq('fecha', fecha)
-    .in('status', [...ACTIVE_STATUSES])
+  try {
+    // Consultar reservas activas de esa fecha
+    const { data: reservations, error: dbError } = await supabaseAdmin
+      .from('reservations')
+      .select('id, fecha, hora_inicio, hora_fin, personas, event_type, status, is_exclusive')
+      .eq('fecha', fecha)
+      .in('status', [...ACTIVE_STATUSES])
 
-  if (dbError) {
-    console.error('Supabase error:', dbError)
+    if (dbError) {
+      console.error('[availability] Supabase error:', dbError)
+      return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    }
+
+    const activeReservations: ReservationRow[] = (reservations ?? []) as ReservationRow[]
+
+    const slotStart = toMinutes(hora)
+    const slotEnd = slotStart + BLOCK_DURATION
+
+    const result = checkSlot(slotStart, slotEnd, event_type, personas, activeReservations)
+
+    if (result.available) {
+      return NextResponse.json({
+        available: true,
+        message: `Disponibilidad confirmada para ${personas} personas.`,
+        alternatives: [],
+      })
+    }
+
+    // Buscar alternativas: +30, +60, -30, -60, +90, -90 → primeras 3 válidas
+    const deltas = [30, 60, -30, -60, 90, -90]
+    const alternatives: string[] = []
+
+    for (const delta of deltas) {
+      if (alternatives.length >= 3) break
+
+      const altStart = addMinutes(slotStart, delta)
+      const altEnd = altStart + BLOCK_DURATION
+
+      const altResult = checkSlot(altStart, altEnd, event_type, personas, activeReservations)
+      if (altResult.available) {
+        alternatives.push(toHHmm(altStart))
+      }
+    }
+
+    return NextResponse.json({
+      available: false,
+      message: result.reason ?? 'No hay disponibilidad a esa hora.',
+      alternatives,
+    })
+  } catch (err) {
+    console.error('[availability] Unexpected error:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
-
-  const activeReservations: ReservationRow[] = (reservations ?? []) as ReservationRow[]
-
-  const slotStart = toMinutes(hora)
-  const slotEnd = slotStart + BLOCK_DURATION
-
-  const result = checkSlot(slotStart, slotEnd, event_type, personas, activeReservations)
-
-  if (result.available) {
-    return NextResponse.json({
-      available: true,
-      message: `Disponibilidad confirmada para ${personas} personas.`,
-      alternatives: [],
-    })
-  }
-
-  // Buscar alternativas en incrementos de 30 min
-  const deltas = [30, 60, -30, -60, 90, -90, 120, -120, 150, -150, 180, -180]
-  const alternatives: string[] = []
-
-  for (const delta of deltas) {
-    if (alternatives.length >= 3) break
-
-    const altStart = addMinutes(slotStart, delta)
-    const altEnd = altStart + BLOCK_DURATION
-
-    // No proponer horarios fuera de rango razonable (08:00 - 03:00)
-    if (altStart < toMinutes('08:00') && altStart > toMinutes('03:00')) continue
-
-    const altResult = checkSlot(altStart, altEnd, event_type, personas, activeReservations)
-    if (altResult.available) {
-      alternatives.push(toHHmm(altStart))
-    }
-  }
-
-  return NextResponse.json({
-    available: false,
-    message: result.reason ?? 'No hay disponibilidad a esa hora.',
-    alternatives,
-  })
 }
