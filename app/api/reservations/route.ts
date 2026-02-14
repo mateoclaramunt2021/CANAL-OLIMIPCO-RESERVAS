@@ -3,9 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { z } from 'zod'
 import { computeBlockKey, validateRules, checkCapacity, calcTotals, computeDeposit, buildInvoiceHtml } from '@/core/business'
 import { whatsAppProvider } from '@/lib/providers'
-import Stripe from 'stripe'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
+import { getStripe } from '@/lib/stripe'
 
 const createSchema = z.object({
   client: z.object({ name: z.string().min(1), phone: z.string().min(1) }),

@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import Stripe from 'stripe'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
+import { getStripe } from '@/lib/stripe'
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')!
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(body, sig, endpointSecret)
+    event = getStripe().webhooks.constructEvent(body, sig, endpointSecret)
   } catch (err) {
     return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 })
   }

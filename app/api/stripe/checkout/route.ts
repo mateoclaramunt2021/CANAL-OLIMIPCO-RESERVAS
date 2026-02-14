@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import Stripe from 'stripe'
+import { getStripe } from '@/lib/stripe'
 import { z } from 'zod'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-01-28.clover' })
 
 const schema = z.object({ reservation_id: z.string() })
 
@@ -20,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     if (!reservation) return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
         price_data: {

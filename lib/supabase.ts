@@ -3,13 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Anon Key:', supabaseAnonKey ? 'Set' : 'Not set')
+
 
 let supabase: any
 if (!supabaseUrl || !supabaseAnonKey || supabaseAnonKey === 'dummy_anon_key' || supabaseAnonKey.includes('dummy')) {
-  console.warn('Using dummy Supabase keys. Please set real keys in .env.local')
-  // Create a mock client for testing
+  // Create a mock client for development
   supabase = {
     auth: {
       signInWithPassword: ({ email }: { email: string }) => Promise.resolve({
@@ -54,11 +52,11 @@ if (!supabaseUrl || !supabaseAnonKey || supabaseAnonKey === 'dummy_anon_key' || 
 
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-console.log('Supabase Service Key:', supabaseServiceKey ? 'Set' : 'Not set')
+
 
 let supabaseAdmin: any
 if (!supabaseServiceKey || supabaseServiceKey.includes('dummy')) {
-  console.warn('Using dummy service key. DB operations will fail.')
+  
   supabaseAdmin = {
     from: () => ({
       select: () => ({
