@@ -92,7 +92,7 @@ if (!supabaseServiceKey || supabaseServiceKey.includes('dummy')) {
     })
   }
 } else {
-  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+  supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!)
 }
 
 export { supabase, supabaseAdmin }

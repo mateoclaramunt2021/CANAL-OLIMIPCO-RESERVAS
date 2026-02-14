@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 const updateSchema = z.object({
   guests_confirmed: z.number().int().positive().optional(),
-  menu_payload: z.record(z.any()).optional(),
+  menu_payload: z.record(z.string(), z.any()).optional(),
   status: z.enum(['pending_payment', 'confirmed', 'pending_final', 'closed', 'canceled', 'no_show']).optional()
 })
 

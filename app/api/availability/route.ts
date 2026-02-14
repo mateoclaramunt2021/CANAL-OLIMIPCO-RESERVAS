@@ -35,7 +35,7 @@ const requestSchema = z.object({
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha debe tener formato YYYY-MM-DD'),
   hora: z.string().regex(/^\d{2}:\d{2}$/, 'Hora debe tener formato HH:mm'),
   personas: z.number().int().min(1, 'Mínimo 1 persona').max(MAX_CAPACITY, `Máximo ${MAX_CAPACITY} personas`),
-  event_type: z.enum(EVENT_TYPES, { errorMap: () => ({ message: `Tipo de evento inválido. Valores: ${EVENT_TYPES.join(', ')}` }) }),
+  event_type: z.enum(EVENT_TYPES, { error: `Tipo de evento inválido. Valores: ${EVENT_TYPES.join(', ')}` }),
 })
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
