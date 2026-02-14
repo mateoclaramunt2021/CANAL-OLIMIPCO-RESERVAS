@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-const EVENT_TYPES = ['INFANTIL_CUMPLE', 'GRUPO_SENTADO', 'GRUPO_PICA_PICA', 'NOCTURNA_EXCLUSIVA'] as const
+const EVENT_TYPES = ['RESERVA_NORMAL', 'INFANTIL_CUMPLE', 'GRUPO_SENTADO', 'GRUPO_PICA_PICA', 'NOCTURNA_EXCLUSIVA'] as const
 type EventType = (typeof EVENT_TYPES)[number]
 
 const ACTIVE_STATUSES = ['HOLD_BLOCKED', 'CONFIRMED'] as const
