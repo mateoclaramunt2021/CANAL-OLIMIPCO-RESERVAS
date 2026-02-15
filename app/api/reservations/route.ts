@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { findBestTable } from '@/core/tables'
+import { checkMinAdvance, calculateQuote, findMenu, PAYMENT_DEADLINE_DAYS } from '@/core/menus'
+import { sendReservationConfirmation, sendPaymentLink } from '@/lib/whatsapp'
+import { getStripe } from '@/lib/stripe'
 
 // ─── Tipos válidos de evento ─────────────────────────────────────────────────
 const VALID_EVENT_TYPES = [
@@ -11,9 +14,19 @@ const VALID_EVENT_TYPES = [
   'NOCTURNA_EXCLUSIVA',
 ] as const
 
+const EVENT_TYPES_REQUIRING_PAYMENT = [
+  'INFANTIL_CUMPLE',
+  'GRUPO_SENTADO',
+  'GRUPO_PICA_PICA',
+  'NOCTURNA_EXCLUSIVA',
+]
+
 const ACTIVE_STATUSES = ['HOLD_BLOCKED', 'CONFIRMED']
 
 // ─── POST: Crear reserva ────────────────────────────────────────────────────
+// RESERVA_NORMAL → asigna mesa + WhatsApp confirmación directa
+// GRUPO/EVENTO → calcula total + señal 40% + genera link Stripe + WhatsApp con link
+
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>
   try {
@@ -22,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'El body debe ser JSON válido' }, { status: 400 })
   }
 
-  const { nombre, telefono, fecha, hora, personas, event_type, zona } = body as {
+  const { nombre, telefono, fecha, hora, personas, event_type, zona, menu_code, extras_horarios } = body as {
     nombre?: string
     telefono?: string
     fecha?: string
@@ -30,6 +43,8 @@ export async function POST(req: NextRequest) {
     personas?: number
     event_type?: string
     zona?: 'fuera' | 'dentro'
+    menu_code?: string
+    extras_horarios?: string[]  // ['01:00-02:00', '02:00-03:00']
   }
 
   // Validaciones
@@ -53,8 +68,19 @@ export async function POST(req: NextRequest) {
   if (!event_type || !VALID_EVENT_TYPES.includes(event_type as typeof VALID_EVENT_TYPES[number]))
     errors.push(`event_type es obligatorio. Valores válidos: ${VALID_EVENT_TYPES.join(', ')}`)
 
+  // Para eventos con pago, menu_code es obligatorio
+  if (event_type && EVENT_TYPES_REQUIRING_PAYMENT.includes(event_type) && !menu_code) {
+    errors.push('menu_code es obligatorio para eventos de grupo')
+  }
+
   if (errors.length > 0) {
     return NextResponse.json({ ok: false, error: errors.join('. ') }, { status: 400 })
+  }
+
+  // ── Verificar antelación mínima de 5 días ──
+  const advance = checkMinAdvance(fecha!)
+  if (!advance.ok) {
+    return NextResponse.json({ ok: false, error: advance.message }, { status: 400 })
   }
 
   // Calcular hora_fin (bloque de 2 horas)
@@ -63,11 +89,25 @@ export async function POST(req: NextRequest) {
   const hora_fin = `${String(Math.floor((finMinutes % 1440) / 60)).padStart(2, '0')}:${String(finMinutes % 60).padStart(2, '0')}`
 
   try {
+    // ── Variables de precio (para grupos) ──
+    let total_amount: number | null = null
+    let deposit_amount: number | null = null
+    let selectedMenuCode: string | null = menu_code || null
+
+    // ── Calcular precio si es evento con pago ──
+    if (event_type && EVENT_TYPES_REQUIRING_PAYMENT.includes(event_type) && menu_code) {
+      const quote = calculateQuote(menu_code, personas!, extras_horarios)
+      if ('error' in quote) {
+        return NextResponse.json({ ok: false, error: quote.error }, { status: 400 })
+      }
+      total_amount = quote.total
+      deposit_amount = quote.deposit
+    }
+
     // ── Asignar mesa si es RESERVA_NORMAL ──
     let table_id: string | null = null
 
     if (event_type === 'RESERVA_NORMAL') {
-      // Buscar mesas ocupadas en ese slot
       const { data: existing } = await supabaseAdmin
         .from('reservations')
         .select('table_id, hora_inicio, hora_fin')
@@ -100,20 +140,32 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Insertar reserva ──
+    const reservationData: Record<string, any> = {
+      customer_name: nombre!.trim(),
+      customer_phone: telefono!.trim(),
+      fecha: fecha,
+      hora_inicio: hora,
+      hora_fin: hora_fin,
+      personas: personas,
+      event_type: event_type,
+      table_id: table_id,
+      status: event_type === 'RESERVA_NORMAL' ? 'CONFIRMED' : 'HOLD_BLOCKED',
+      total_amount: total_amount,
+      deposit_amount: deposit_amount,
+      menu_code: selectedMenuCode,
+      payment_deadline: event_type !== 'RESERVA_NORMAL'
+        ? new Date(Date.now() + PAYMENT_DEADLINE_DAYS * 24 * 60 * 60 * 1000).toISOString()
+        : null,
+      created_at: new Date().toISOString(),
+    }
+
+    if (event_type === 'NOCTURNA_EXCLUSIVA') {
+      reservationData.is_exclusive = true
+    }
+
     const { data, error: dbError } = await supabaseAdmin
       .from('reservations')
-      .insert({
-        customer_name: nombre!.trim(),
-        customer_phone: telefono!.trim(),
-        fecha: fecha,
-        hora_inicio: hora,
-        hora_fin: hora_fin,
-        personas: personas,
-        event_type: event_type,
-        table_id: table_id,
-        status: 'HOLD_BLOCKED',
-        created_at: new Date().toISOString(),
-      })
+      .insert(reservationData)
       .select('id')
       .single()
 
@@ -122,11 +174,87 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Error al guardar la reserva' }, { status: 500 })
     }
 
+    const reservationId = data.id
+
+    // ── Post-creación: WhatsApp automático ──
+    let stripeUrl: string | null = null
+
+    if (event_type === 'RESERVA_NORMAL') {
+      // → WhatsApp de confirmación directa
+      const mesa = table_id ? findBestTable(personas!, [], zona) : null
+      sendReservationConfirmation(telefono!.trim(), {
+        nombre: nombre!.trim(),
+        fecha: fecha!,
+        hora: hora!,
+        personas: personas!,
+        tableId: table_id,
+        zone: zona || null,
+        reservationId,
+      }).catch(err => console.error('[reservations POST] WhatsApp error:', err))
+
+    } else if (deposit_amount && deposit_amount > 0) {
+      // → Generar link de Stripe + WhatsApp con link de pago
+      try {
+        const stripe = getStripe()
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [{
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: `Señal Reserva — ${findMenu(menu_code!)?.name || 'Evento'}`,
+                description: `${personas} personas, ${fecha} ${hora}h`,
+              },
+              unit_amount: Math.round(deposit_amount * 100),
+            },
+            quantity: 1,
+          }],
+          mode: 'payment',
+          success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/cancel`,
+          metadata: { reservation_id: reservationId },
+          expires_at: Math.floor(Date.now() / 1000) + (PAYMENT_DEADLINE_DAYS * 24 * 60 * 60),
+        })
+
+        stripeUrl = session.url
+
+        // Guardar URL en la reserva
+        await supabaseAdmin
+          .from('reservations')
+          .update({ stripe_checkout_url: session.url, stripe_session_id: session.id })
+          .eq('id', reservationId)
+
+        // Enviar WhatsApp con link de pago
+        sendPaymentLink(telefono!.trim(), {
+          nombre: nombre!.trim(),
+          fecha: fecha!,
+          hora: hora!,
+          personas: personas!,
+          menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
+          total: total_amount!,
+          deposit: deposit_amount,
+          paymentUrl: session.url!,
+          deadlineDays: PAYMENT_DEADLINE_DAYS,
+          reservationId,
+        }).catch(err => console.error('[reservations POST] WhatsApp payment error:', err))
+
+      } catch (stripeErr) {
+        console.error('[reservations POST] Stripe error:', stripeErr)
+        // La reserva se creó, pero no se generó Stripe. No es fatal.
+      }
+    }
+
     return NextResponse.json({
       ok: true,
-      reservation_id: data.id,
-      message: 'Reserva creada',
+      reservation_id: reservationId,
+      message: event_type === 'RESERVA_NORMAL'
+        ? 'Reserva confirmada. Se ha enviado WhatsApp de confirmación.'
+        : `Reserva creada. Se ha enviado WhatsApp con link de pago (señal ${deposit_amount}€).`,
       table_id: table_id,
+      total_amount,
+      deposit_amount,
+      stripe_url: stripeUrl,
+      payment_deadline: reservationData.payment_deadline,
     })
   } catch (err) {
     console.error('[reservations POST] Unexpected error:', err)
