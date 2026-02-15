@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (parsed.method === 'efectivo' || parsed.method === 'transferencia') {
       await supabaseAdmin
         .from('reservations')
-        .update({ deposit_paid: true, status: 'confirmed' })
+        .update({ deposit_paid: true, deposit_paid_at: new Date().toISOString(), status: 'CONFIRMED' })
         .eq('id', parsed.reservation_id)
     }
 

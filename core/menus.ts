@@ -145,20 +145,52 @@ export function getMenusForEvent(eventType: string): MenuItem[] {
   return MENUS.filter(m => m.eventTypes.includes(eventType))
 }
 
-/** Verificar que la fecha tiene al menos 5 días de antelación */
-export function checkMinAdvance(fechaStr: string): { ok: boolean; message?: string } {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const fecha = new Date(fechaStr + 'T00:00:00')
-  const diffMs = fecha.getTime() - today.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+/** Verificar antelación mínima según tipo de reserva.
+ *  - RESERVA_NORMAL: mínimo 4 horas de antelación.
+ *  - EVENTOS/GRUPOS: mínimo 5 días de antelación.
+ */
+export function checkMinAdvance(fechaStr: string, horaStr?: string, eventType?: string): { ok: boolean; message?: string } {
+  const now = new Date()
 
-  if (diffDays < MIN_ADVANCE_DAYS) {
+  // Eventos y grupos: 5 días de antelación
+  const isEvent = eventType && eventType !== 'RESERVA_NORMAL'
+  if (isEvent) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const fecha = new Date(fechaStr + 'T00:00:00')
+    const diffMs = fecha.getTime() - today.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffDays < MIN_ADVANCE_DAYS) {
+      return {
+        ok: false,
+        message: `Los eventos deben reservarse con mínimo ${MIN_ADVANCE_DAYS} días de antelación. La fecha más próxima disponible es ${formatDate(addDays(today, MIN_ADVANCE_DAYS))}.`,
+      }
+    }
+    return { ok: true }
+  }
+
+  // Reserva normal: mínimo 4 horas de antelación
+  const hora = horaStr || '12:00'
+  const reservationDate = new Date(`${fechaStr}T${hora}:00`)
+  const diffMs = reservationDate.getTime() - now.getTime()
+  const diffHours = diffMs / (1000 * 60 * 60)
+
+  if (diffHours < 4) {
     return {
       ok: false,
-      message: `La reserva debe hacerse con mínimo ${MIN_ADVANCE_DAYS} días de antelación. La fecha más próxima disponible es ${formatDate(addDays(today, MIN_ADVANCE_DAYS))}.`,
+      message: 'Las reservas de mesa deben hacerse con al menos 4 horas de antelación.',
     }
   }
+
+  // No permitir fechas pasadas
+  if (diffMs < 0) {
+    return {
+      ok: false,
+      message: 'No se puede reservar en una fecha y hora que ya ha pasado.',
+    }
+  }
+
   return { ok: true }
 }
 

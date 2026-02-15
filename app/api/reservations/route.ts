@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: errors.join('. ') }, { status: 400 })
   }
 
-  // ── Verificar antelación mínima de 5 días ──
-  const advance = checkMinAdvance(fecha!)
+  // ── Verificar antelación mínima (4h para mesa, 5 días para eventos) ──
+  const advance = checkMinAdvance(fecha!, hora!, event_type as string)
   if (!advance.ok) {
     return NextResponse.json({ ok: false, error: advance.message }, { status: 400 })
   }

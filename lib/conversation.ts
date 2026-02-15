@@ -228,8 +228,8 @@ async function handlePedirFecha(phone: string, message: string, state: Conversat
     return
   }
 
-  // Verificar antelación mínima de 5 días
-  const advance = checkMinAdvance(fecha)
+  // Verificar antelación mínima
+  const advance = checkMinAdvance(fecha, undefined, state.data.event_type)
   if (!advance.ok) {
     await sendText(phone, `❌ ${advance.message}`)
     return
@@ -414,9 +414,8 @@ async function handleConfirmar(phone: string, message: string, state: Conversati
 
   try {
     // Llamar a la API interna para crear la reserva
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
     const res = await fetch(`${baseUrl}/api/reservations`, {
       method: 'POST',
