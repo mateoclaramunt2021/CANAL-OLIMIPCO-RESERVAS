@@ -57,41 +57,37 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 let supabaseAdmin: any
 if (!supabaseServiceKey || supabaseServiceKey.includes('dummy')) {
   
+  // Mock recursivo que soporta cualquier cadena de llamadas de Supabase
+  const mockChain = (): any => {
+    const chain: any = {
+      eq: () => mockChain(),
+      neq: () => mockChain(),
+      in: () => mockChain(),
+      gte: () => mockChain(),
+      lt: () => mockChain(),
+      order: () => mockChain(),
+      limit: () => mockChain(),
+      single: () => Promise.resolve({ data: null, error: null }),
+      select: () => mockChain(),
+      then: (resolve: any) => resolve({ data: [], error: null }),
+    }
+    // Hacer que sea thenable (para await directo)
+    chain[Symbol.toStringTag] = 'Promise'
+    return chain
+  }
+
   supabaseAdmin = {
     from: () => ({
-      select: () => {
-        const chainable: any = {
-          eq: () => ({
-            single: () => Promise.resolve({ data: null, error: null }),
-            in: () => Promise.resolve({ data: [], error: null }),
-            order: () => ({
-              limit: () => Promise.resolve({ data: [], error: null })
-            })
-          }),
-          gte: () => ({
-            lt: () => Promise.resolve({ data: [], error: null })
-          }),
-          in: () => ({
-            order: () => ({
-              limit: () => Promise.resolve({ data: [], error: null })
-            })
-          }),
-          insert: () => ({
-            select: () => ({
-              single: () => Promise.resolve({ data: { id: 'dummy' }, error: null })
-            })
-          }),
-          update: () => ({
-            eq: () => ({
-              select: () => ({
-                single: () => Promise.resolve({ data: { id: 'dummy' }, error: null })
-              })
-            })
-          })
-        }
-        return chainable
-      }
-    })
+      select: () => mockChain(),
+      insert: () => ({
+        select: () => ({
+          single: () => Promise.resolve({ data: { id: 'mock-' + Date.now() }, error: null }),
+        }),
+      }),
+      update: () => ({
+        eq: () => Promise.resolve({ error: null }),
+      }),
+    }),
   }
 } else {
   supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!)

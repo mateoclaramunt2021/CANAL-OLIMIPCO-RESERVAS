@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { supabaseAdmin } from '@/lib/supabase'
+import { ALL_TABLES, findBestTable, MAX_EVENT_CAPACITY } from '@/core/tables'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -10,7 +11,6 @@ type EventType = (typeof EVENT_TYPES)[number]
 const ACTIVE_STATUSES = ['HOLD_BLOCKED', 'CONFIRMED'] as const
 
 const BLOCK_DURATION = 120 // minutos
-const MAX_CAPACITY = 100
 
 interface ReservationRow {
   id: string
@@ -21,12 +21,14 @@ interface ReservationRow {
   event_type: string | null
   status: string | null
   is_exclusive: boolean | null
+  table_id: string | null
 }
 
 interface AvailabilityResponse {
   available: boolean
   message: string
   alternatives: string[]
+  table?: { id: string; zone: string; capacity: number } | null
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -34,8 +36,9 @@ interface AvailabilityResponse {
 const requestSchema = z.object({
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha debe tener formato YYYY-MM-DD'),
   hora: z.string().regex(/^\d{2}:\d{2}$/, 'Hora debe tener formato HH:mm'),
-  personas: z.number().int().min(1, 'Mínimo 1 persona').max(MAX_CAPACITY, `Máximo ${MAX_CAPACITY} personas`),
+  personas: z.number().int().min(1, 'Mínimo 1 persona'),
   event_type: z.enum(EVENT_TYPES, { error: `Tipo de evento inválido. Valores: ${EVENT_TYPES.join(', ')}` }),
+  zona: z.enum(['fuera', 'dentro']).optional(),
 })
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -62,50 +65,81 @@ function overlaps(startA: number, endA: number, startB: number, endB: number): b
 }
 
 // ─── Core availability check ────────────────────────────────────────────────
+// RESERVA_NORMAL → busca una mesa libre (28 mesas fijas)
+// Eventos → usa la capacidad extra de 100 personas (separada de las mesas)
+
+function getOverlapping(slotStart: number, slotEnd: number, reservations: ReservationRow[]): ReservationRow[] {
+  return reservations.filter(r => {
+    if (!r.hora_inicio) return false
+    const rStart = toMinutes(r.hora_inicio)
+    const rEnd = r.hora_fin ? toMinutes(r.hora_fin) : rStart + BLOCK_DURATION
+    return overlaps(slotStart, slotEnd, rStart, rEnd)
+  })
+}
 
 function checkSlot(
   slotStart: number,
   slotEnd: number,
   eventType: EventType,
   personas: number,
-  activeReservations: ReservationRow[]
-): { available: boolean; reason?: string } {
-  // Regla: INFANTIL_CUMPLE no después de las 20:30
+  activeReservations: ReservationRow[],
+  preferZone?: 'fuera' | 'dentro'
+): { available: boolean; reason?: string; table?: { id: string; zone: string; capacity: number } | null } {
+
+  // Regla horaria: INFANTIL_CUMPLE no después de las 20:30
   if (eventType === 'INFANTIL_CUMPLE' && slotStart > toMinutes('20:30')) {
     return { available: false, reason: 'Los eventos infantiles no se permiten después de las 20:30' }
   }
 
-  // Regla: NOCTURNA_EXCLUSIVA solo a partir de las 21:30
+  // Regla horaria: NOCTURNA_EXCLUSIVA solo a partir de las 21:30
   if (eventType === 'NOCTURNA_EXCLUSIVA' && slotStart < toMinutes('21:30')) {
     return { available: false, reason: 'Los eventos nocturnos exclusivos requieren hora a partir de las 21:30' }
   }
 
-  // Filtrar reservas que solapan con el slot
-  const solapadas = activeReservations.filter(r => {
-    if (!r.hora_inicio) return false
-    const rStart = toMinutes(r.hora_inicio)
-    const rEnd = r.hora_fin ? toMinutes(r.hora_fin) : rStart + BLOCK_DURATION
-    return overlaps(slotStart, slotEnd, rStart, rEnd)
-  })
+  const solapadas = getOverlapping(slotStart, slotEnd, activeReservations)
 
-  // Si solicitan NOCTURNA_EXCLUSIVA y hay cualquier solapada → no disponible
-  if (eventType === 'NOCTURNA_EXCLUSIVA' && solapadas.length > 0) {
-    return { available: false, reason: 'Un evento nocturno exclusivo necesita el bloque sin otras reservas' }
-  }
-
-  // Si hay una solapada exclusiva → no disponible
+  // Si hay una solapada exclusiva → nada disponible
   const hayExclusiva = solapadas.some(r => r.is_exclusive === true)
   if (hayExclusiva) {
     return { available: false, reason: 'Ya existe un evento exclusivo en ese bloque horario' }
   }
 
-  // Verificar capacidad
-  const ocupadas = solapadas.reduce((sum, r) => sum + (r.personas ?? 0), 0)
-  if (ocupadas + personas > MAX_CAPACITY) {
-    return { available: false, reason: `Capacidad insuficiente (${ocupadas}/${MAX_CAPACITY} ocupadas, necesitas ${personas})` }
+  // ── RESERVA_NORMAL → buscar mesa física ──
+  if (eventType === 'RESERVA_NORMAL') {
+    const occupiedTableIds = solapadas
+      .map(r => r.table_id)
+      .filter((id): id is string => id != null)
+
+    const mesa = findBestTable(personas, occupiedTableIds, preferZone)
+    if (!mesa) {
+      return {
+        available: false,
+        reason: `No hay mesa disponible para ${personas} personas${preferZone ? ` en zona ${preferZone}` : ''}`,
+      }
+    }
+
+    return { available: true, table: { id: mesa.id, zone: mesa.zone, capacity: mesa.capacity } }
   }
 
-  return { available: true }
+  // ── EVENTOS → capacidad extra de 100 personas ──
+
+  // NOCTURNA_EXCLUSIVA necesita bloque vacío (ni mesas ni eventos)
+  if (eventType === 'NOCTURNA_EXCLUSIVA' && solapadas.length > 0) {
+    return { available: false, reason: 'Un evento nocturno exclusivo necesita el bloque sin otras reservas' }
+  }
+
+  // Contar solo personas de eventos (no las de mesas)
+  const eventReservations = solapadas.filter(r => r.event_type !== 'RESERVA_NORMAL')
+  const eventOccupied = eventReservations.reduce((sum, r) => sum + (r.personas ?? 0), 0)
+
+  if (eventOccupied + personas > MAX_EVENT_CAPACITY) {
+    return {
+      available: false,
+      reason: `Capacidad de eventos insuficiente (${eventOccupied}/${MAX_EVENT_CAPACITY} ocupadas, necesitas ${personas})`,
+    }
+  }
+
+  return { available: true, table: null }
 }
 
 // ─── GET: health-check ───────────────────────────────────────────────────────
@@ -114,12 +148,15 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     message: 'availability endpoint alive',
-    howTo: 'Use POST with {fecha,hora,personas,event_type}',
-    example: {
-      fecha: '2026-03-15',
-      hora: '14:00',
-      personas: 2,
-      event_type: 'GRUPO_SENTADO',
+    howTo: 'Use POST with {fecha,hora,personas,event_type,zona?}',
+    examples: [
+      { fecha: '2026-03-15', hora: '14:00', personas: 2, event_type: 'RESERVA_NORMAL', zona: 'fuera' },
+      { fecha: '2026-03-15', hora: '20:00', personas: 30, event_type: 'GRUPO_SENTADO' },
+    ],
+    capacidad: {
+      mesas: '28 mesas (98 plazas) — para RESERVA_NORMAL',
+      eventos: '100 personas extra — para eventos (INFANTIL_CUMPLE, GRUPO_SENTADO, etc.)',
+      total_maximo: '~198 personas simultáneas',
     },
   })
 }
@@ -141,13 +178,13 @@ export async function POST(req: NextRequest): Promise<NextResponse<AvailabilityR
     return NextResponse.json({ error: `Campos obligatorios faltantes: ${issues}` }, { status: 400 })
   }
 
-  const { fecha, hora, personas, event_type } = parsed.data
+  const { fecha, hora, personas, event_type, zona } = parsed.data
 
   try {
     // Consultar reservas activas de esa fecha
     const { data: reservations, error: dbError } = await supabaseAdmin
       .from('reservations')
-      .select('id, fecha, hora_inicio, hora_fin, personas, event_type, status, is_exclusive')
+      .select('id, fecha, hora_inicio, hora_fin, personas, event_type, status, is_exclusive, table_id')
       .eq('fecha', fecha)
       .in('status', [...ACTIVE_STATUSES])
 
@@ -161,13 +198,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<AvailabilityR
     const slotStart = toMinutes(hora)
     const slotEnd = slotStart + BLOCK_DURATION
 
-    const result = checkSlot(slotStart, slotEnd, event_type, personas, activeReservations)
+    const result = checkSlot(slotStart, slotEnd, event_type, personas, activeReservations, zona)
 
     if (result.available) {
       return NextResponse.json({
         available: true,
-        message: `Disponibilidad confirmada para ${personas} personas.`,
+        message: event_type === 'RESERVA_NORMAL'
+          ? `Mesa disponible para ${personas} personas${result.table ? ` (${result.table.zone}, mesa ${result.table.id}, ${result.table.capacity} plazas)` : ''}.`
+          : `Disponibilidad confirmada para ${personas} personas (evento).`,
         alternatives: [],
+        table: result.table || null,
       })
     }
 
@@ -181,7 +221,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<AvailabilityR
       const altStart = addMinutes(slotStart, delta)
       const altEnd = altStart + BLOCK_DURATION
 
-      const altResult = checkSlot(altStart, altEnd, event_type, personas, activeReservations)
+      const altResult = checkSlot(altStart, altEnd, event_type, personas, activeReservations, zona)
       if (altResult.available) {
         alternatives.push(toHHmm(altStart))
       }
