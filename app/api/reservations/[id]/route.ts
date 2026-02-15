@@ -3,28 +3,54 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { z } from 'zod'
 
 const updateSchema = z.object({
-  guests_confirmed: z.number().int().positive().optional(),
+  status: z.enum(['HOLD_BLOCKED', 'CONFIRMED', 'CANCELED', 'COMPLETED', 'NO_SHOW']).optional(),
+  personas: z.number().int().positive().optional(),
+  customer_name: z.string().optional(),
+  customer_phone: z.string().optional(),
+  menu_code: z.string().optional(),
   menu_payload: z.record(z.string(), z.any()).optional(),
-  status: z.enum(['pending_payment', 'confirmed', 'pending_final', 'closed', 'canceled', 'no_show']).optional()
+  canceled_reason: z.string().optional(),
 })
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const { data, error } = await supabaseAdmin
+
+  // Obtener reserva
+  const { data: reservation, error: resErr } = await supabaseAdmin
     .from('reservations')
-    .select(`
-      *,
-      clients (name, phone),
-      messages (*),
-      call_logs (*),
-      payments (*)
-    `)
+    .select('*')
     .eq('id', id)
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (resErr || !reservation) {
+    return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
+  }
 
-  return NextResponse.json(data)
+  // Obtener mensajes, llamadas y pagos en paralelo
+  const [messagesRes, callsRes, paymentsRes] = await Promise.all([
+    supabaseAdmin
+      .from('messages')
+      .select('*')
+      .eq('reservation_id', id)
+      .order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('call_logs')
+      .select('*')
+      .eq('reservation_id', id)
+      .order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('payments')
+      .select('*')
+      .eq('reservation_id', id)
+      .order('created_at', { ascending: true }),
+  ])
+
+  return NextResponse.json({
+    ...reservation,
+    messages: messagesRes.data || [],
+    call_logs: callsRes.data || [],
+    payments: paymentsRes.data || [],
+  })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -33,18 +59,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json()
     const parsed = updateSchema.parse(body)
 
-    const { data, error } = await supabaseAdmin
+    if (Object.keys(parsed).length === 0) {
+      return NextResponse.json({ error: 'No hay campos para actualizar' }, { status: 400 })
+    }
+
+    const { error } = await supabaseAdmin
       .from('reservations')
       .update(parsed)
       .eq('id', id)
-      .select()
-      .single()
 
     if (error) throw error
 
     return NextResponse.json({ updated: true })
   } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('[reservations/[id] PATCH]', error)
+    return NextResponse.json({ error: 'Error al actualizar' }, { status: 500 })
   }
 }

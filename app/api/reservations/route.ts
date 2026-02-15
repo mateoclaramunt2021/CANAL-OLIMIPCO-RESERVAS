@@ -414,21 +414,20 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
   const startDate = searchParams.get('start_date')
-  const blockKey = searchParams.get('block_key')
+  const fecha = searchParams.get('fecha')
 
   let query = supabaseAdmin
     .from('reservations')
-    .select(`
-      id, event_type, start_datetime, status, total_amount, deposit_amount,
-      clients (name, phone)
-    `)
+    .select('*')
 
   if (status) query = query.eq('status', status)
-  if (startDate) query = query.gte('start_datetime', startDate)
-  if (blockKey) query = query.eq('block_key', blockKey)
+  if (startDate) query = query.gte('fecha', startDate)
+  if (fecha) query = query.eq('fecha', fecha)
+
+  query = query.order('fecha', { ascending: true })
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json(data)
+  return NextResponse.json(data || [])
 }

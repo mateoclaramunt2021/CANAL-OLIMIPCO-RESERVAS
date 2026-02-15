@@ -2,42 +2,48 @@
 
 import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
-import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 interface Reservation {
   id: string
-  start_datetime: string
-  guests_estimated: number
+  customer_name: string
+  customer_phone: string
+  fecha: string
+  hora_inicio: string
+  hora_fin: string
+  personas: number
   status: string
   event_type: string
   total_amount: number
+  deposit_amount: number
+  table_id: string | null
+  menu_code: string | null
+  deposit_paid: boolean
+  payment_deadline: string | null
 }
 
 const statusColors: Record<string, string> = {
-  pending_payment: 'bg-amber-100 text-amber-700 border-amber-200',
-  confirmed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  pending_final: 'bg-blue-100 text-blue-700 border-blue-200',
-  closed: 'bg-slate-100 text-slate-600 border-slate-200',
-  canceled: 'bg-red-100 text-red-700 border-red-200',
-  no_show: 'bg-red-100 text-red-700 border-red-200',
+  HOLD_BLOCKED: 'bg-amber-100 text-amber-700 border-amber-200',
+  CONFIRMED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  CANCELED: 'bg-red-100 text-red-700 border-red-200',
+  COMPLETED: 'bg-slate-100 text-slate-600 border-slate-200',
+  NO_SHOW: 'bg-red-100 text-red-700 border-red-200',
 }
 
 const statusLabels: Record<string, string> = {
-  pending_payment: 'Pago Pendiente',
-  confirmed: 'Confirmada',
-  pending_final: 'Pendiente Final',
-  closed: 'Cerrada',
-  canceled: 'Cancelada',
-  no_show: 'No Show',
+  HOLD_BLOCKED: 'Pago Pendiente',
+  CONFIRMED: 'Confirmada',
+  CANCELED: 'Cancelada',
+  COMPLETED: 'Cerrada',
+  NO_SHOW: 'No Show',
 }
 
 const eventLabels: Record<string, string> = {
-  birthday: 'Cumpleaños',
-  communion: 'Comunión',
-  corporate: 'Corporativo',
-  wedding: 'Boda',
-  other: 'Otro',
+  RESERVA_NORMAL: 'Reserva Normal',
+  INFANTIL_CUMPLE: 'Infantil / Cumple',
+  GRUPO_SENTADO: 'Grupo Sentado',
+  GRUPO_PICA_PICA: 'Grupo Pica-Pica',
+  NOCTURNA_EXCLUSIVA: 'Nocturna Exclusiva',
 }
 
 export default function Dashboard() {
@@ -49,26 +55,45 @@ export default function Dashboard() {
   }, [])
 
   const fetchReservations = async () => {
-    const { data } = await supabase.from('reservations').select('*')
-    setReservations(data || [])
+    try {
+      const res = await fetch('/api/reservations')
+      const data = await res.json()
+      setReservations(Array.isArray(data) ? data : [])
+    } catch {
+      setReservations([])
+    }
     setLoading(false)
   }
 
+  // Solo reservas activas (no canceladas)
+  const active = reservations.filter(r => r.status !== 'CANCELED')
+
   const stats = {
     total: reservations.length,
-    confirmed: reservations.filter(r => r.status === 'confirmed').length,
-    pending: reservations.filter(r => r.status === 'pending_payment').length,
-    revenue: reservations.reduce((sum, r) => sum + (r.total_amount || 0), 0),
+    confirmed: reservations.filter(r => r.status === 'CONFIRMED').length,
+    pending: reservations.filter(r => r.status === 'HOLD_BLOCKED').length,
+    revenue: reservations
+      .filter(r => r.status !== 'CANCELED')
+      .reduce((sum, r) => sum + (r.total_amount || 0), 0),
   }
 
-  const blocks = reservations.reduce((acc, res) => {
-    const date = new Date(res.start_datetime).toLocaleDateString('es-ES', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  // Agrupar por fecha
+  const blocks = active
+    .sort((a, b) => {
+      const dateComp = (a.fecha || '').localeCompare(b.fecha || '')
+      if (dateComp !== 0) return dateComp
+      return (a.hora_inicio || '').localeCompare(b.hora_inicio || '')
     })
-    if (!acc[date]) acc[date] = []
-    acc[date].push(res)
-    return acc
-  }, {} as Record<string, Reservation[]>)
+    .reduce((acc, res) => {
+      const dateStr = res.fecha
+        ? new Date(res.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          })
+        : 'Sin fecha'
+      if (!acc[dateStr]) acc[dateStr] = []
+      acc[dateStr].push(res)
+      return acc
+    }, {} as Record<string, Reservation[]>)
 
   return (
     <DashboardLayout>
@@ -106,7 +131,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500">Pendientes</p>
+                <p className="text-sm font-medium text-slate-500">Pendientes Pago</p>
                 <p className="text-3xl font-bold text-amber-600 mt-1">{stats.pending}</p>
               </div>
               <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
@@ -131,8 +156,8 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Reservas por Bloque</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Bloques de 2 horas</p>
+              <h2 className="text-lg font-semibold text-slate-900">Reservas por Fecha</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Próximas reservas agrupadas por día</p>
             </div>
             <Link href="/reservations" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
               Ver todas →
@@ -148,7 +173,7 @@ export default function Dashboard() {
               <div className="text-center py-12">
                 <span className="text-4xl">📭</span>
                 <p className="text-slate-500 mt-3 font-medium">No hay reservas registradas</p>
-                <p className="text-sm text-slate-400 mt-1">Las reservas aparecerán aquí cuando se creen</p>
+                <p className="text-sm text-slate-400 mt-1">Las reservas aparecerán aquí cuando se creen via WhatsApp, VAPI o la API</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -160,13 +185,17 @@ export default function Dashboard() {
                         <Link href={`/reservations/${res.id}`} key={res.id} className="flex items-center justify-between p-4 bg-slate-50/80 rounded-xl border border-slate-100 hover:bg-blue-50/50 hover:border-blue-200/50 transition-all duration-200 group cursor-pointer">
                           <div className="flex items-center gap-4">
                             <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                              {res.guests_estimated}
+                              {res.personas}
                             </div>
                             <div>
                               <p className="font-medium text-slate-900 group-hover:text-blue-700 transition-colors">
-                                {new Date(res.start_datetime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} — {eventLabels[res.event_type] || res.event_type}
+                                {res.hora_inicio || '—'} — {res.customer_name || 'Sin nombre'}
                               </p>
-                              <p className="text-sm text-slate-500">{res.guests_estimated} personas · {(res.total_amount || 0).toFixed(2)}€</p>
+                              <p className="text-sm text-slate-500">
+                                {eventLabels[res.event_type] || res.event_type} · {res.personas} personas
+                                {res.table_id ? ` · Mesa ${res.table_id}` : ''}
+                                {res.total_amount ? ` · ${res.total_amount.toFixed(2)}€` : ''}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
