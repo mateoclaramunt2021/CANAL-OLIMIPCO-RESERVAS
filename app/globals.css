@@ -169,9 +169,9 @@ img { display: block; }
   position: absolute; inset: 0; z-index: 1;
   background: linear-gradient(
     180deg,
-    rgba(30, 19, 10, .45) 0%,
-    rgba(30, 19, 10, .25) 50%,
-    rgba(30, 19, 10, .55) 100%
+    rgba(30, 19, 10, .18) 0%,
+    rgba(30, 19, 10, .08) 50%,
+    rgba(30, 19, 10, .30) 100%
   );
 }
 
@@ -190,6 +190,7 @@ img { display: block; }
   display: block;
   font-size: .8rem; font-weight: 500; letter-spacing: .35em; text-transform: uppercase;
   color: var(--gold-hover); margin-bottom: 28px;
+  text-shadow: 0 1px 6px rgba(0,0,0,.4);
 }
 
 .hero__title {
@@ -197,6 +198,7 @@ img { display: block; }
   font-size: clamp(3.2rem, 11vw, 7rem);
   font-weight: 700; letter-spacing: .1em; line-height: 1;
   color: var(--white); margin: 0;
+  text-shadow: 0 2px 16px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.25);
 }
 
 .hero__line {
@@ -205,8 +207,9 @@ img { display: block; }
 }
 
 .hero__loc {
-  font-size: 1rem; color: rgba(255,255,255,.75);
+  font-size: 1rem; color: rgba(255,255,255,.9);
   letter-spacing: .03em; margin-bottom: 44px;
+  text-shadow: 0 1px 6px rgba(0,0,0,.4);
 }
 
 .hero__arrow {
@@ -261,7 +264,7 @@ img { display: block; }
   font-size: .72rem; font-weight: 600; letter-spacing: .35em; text-transform: uppercase;
   color: var(--gold); margin-bottom: 16px;
 }
-.sec__label--lt { color: var(--gold-hover); }
+.sec__label--lt { color: var(--gold-hover); text-shadow: 0 1px 6px rgba(0,0,0,.4); }
 
 .sec__heading {
   font-family: 'Georgia', 'Playfair Display', serif;
@@ -269,7 +272,7 @@ img { display: block; }
   font-weight: 700; text-align: center; color: var(--ink);
   line-height: 1.15; margin: 0;
 }
-.sec__heading--lt { color: var(--white); }
+.sec__heading--lt { color: var(--white); text-shadow: 0 2px 12px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.2); }
 
 .sec__line {
   width: 50px; height: 1.5px; background: var(--gold);
@@ -480,9 +483,9 @@ img { display: block; }
   position: absolute; inset: 0; z-index: 1;
   background: linear-gradient(
     180deg,
-    rgba(30, 19, 10, .7) 0%,
-    rgba(30, 19, 10, .55) 50%,
-    rgba(30, 19, 10, .75) 100%
+    rgba(30, 19, 10, .35) 0%,
+    rgba(30, 19, 10, .20) 50%,
+    rgba(30, 19, 10, .40) 100%
   );
 }
 
@@ -556,6 +559,7 @@ img { display: block; }
   font-family: 'Georgia', serif;
   font-size: 1.3rem; font-weight: 600; color: var(--white);
   margin: 0 0 28px;
+  text-shadow: 0 1px 8px rgba(0,0,0,.4);
 }
 
 .cta__btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
