@@ -127,6 +127,7 @@ function Reveal({ children, className = '' }: { children: React.ReactNode; class
 export default function Home() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
+  const [activeMenu, setActiveMenu] = useState(0)
   const menuScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -135,9 +136,25 @@ export default function Home() {
     return () => window.removeEventListener('scroll', fn)
   }, [])
 
+  /* Track which menu card is visible */
+  useEffect(() => {
+    const el = menuScrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      const card = el.querySelector('.mc') as HTMLElement | null
+      if (!card) return
+      const w = card.offsetWidth + 40
+      const idx = Math.round(el.scrollLeft / w)
+      setActiveMenu(Math.max(0, Math.min(idx, MENUS.length - 1)))
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
   const scrollMenus = useCallback((dir: 'left' | 'right') => {
     if (!menuScrollRef.current) return
-    const amt = menuScrollRef.current.offsetWidth * 0.75
+    const card = menuScrollRef.current.querySelector('.mc') as HTMLElement | null
+    const amt = card ? card.offsetWidth + 40 : menuScrollRef.current.offsetWidth
     menuScrollRef.current.scrollBy({ left: dir === 'left' ? -amt : amt, behavior: 'smooth' })
   }, [])
 
@@ -290,6 +307,21 @@ export default function Home() {
               ))}
             </div>
             <button className="menus-arr menus-arr--r" onClick={() => scrollMenus('right')} aria-label="Siguiente">›</button>
+          </div>
+          <div className="menus-dots">
+            {MENUS.map((_, i) => (
+              <button
+                key={i}
+                className={`menus-dot ${i === activeMenu ? 'menus-dot--active' : ''}`}
+                aria-label={`Menú ${i + 1}`}
+                onClick={() => {
+                  if (!menuScrollRef.current) return
+                  const card = menuScrollRef.current.querySelector('.mc') as HTMLElement | null
+                  const w = card ? card.offsetWidth + 40 : 0
+                  menuScrollRef.current.scrollTo({ left: w * i, behavior: 'smooth' })
+                }}
+              />
+            ))}
           </div>
           <p className="menus-hint">← Desliza para ver más →</p>
         </Reveal>
