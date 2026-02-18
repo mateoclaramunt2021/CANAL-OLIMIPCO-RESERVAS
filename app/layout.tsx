@@ -5,8 +5,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Canal Olímpico - Sistema de Reservas',
-  description: 'Sistema de reservas automático para el restaurante Canal Olímpico',
+  title: 'Canal Olímpico — Restaurante · Terraza · Eventos | Castelldefels',
+  description: 'Restaurante Canal Olímpico en Castelldefels. Terraza, eventos, reservas de grupo y gastronomía mediterránea junto al Canal Olímpic.',
 }
 
 export default function RootLayout({
