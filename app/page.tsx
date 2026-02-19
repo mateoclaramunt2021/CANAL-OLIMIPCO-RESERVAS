@@ -136,6 +136,33 @@ function Reveal({ children, className = '' }: { children: React.ReactNode; class
   return <div ref={ref} className={`reveal ${className}`}>{children}</div>
 }
 
+/* ─── FAQ data ────────────────────────────────────────────────────────────── */
+const FAQ_DATA = [
+  { q: '¿Cuál es el horario del restaurante?', a: 'De lunes a viernes de 8:00 a 18:00h. Sábados y domingos de 9:00 a 18:00h. Para eventos nocturnos privados, consultar disponibilidad.' },
+  { q: '¿Hay parking disponible?', a: 'Sí, disponemos de un amplio aparcamiento gratuito junto al restaurante, ideal para grupos grandes.' },
+  { q: '¿Puedo reservar para más de 6 personas?', a: 'Por supuesto. Para grupos de 7 o más personas selecciona la opción "Grupo / Evento" en el formulario de reserva. Tenemos menús cerrados desde 29€/persona con todo incluido.' },
+  { q: '¿Cómo funciona la señal para grupos?', a: 'Al reservar un evento o grupo se requiere una señal del 40% del total, que puedes pagar online de forma segura. Tienes 4 días para completar el pago desde la confirmación.' },
+  { q: '¿Puedo cancelar o modificar mi reserva?', a: 'Puedes modificar tu reserva hasta 72 horas antes del evento. Si cancelas fuera de plazo, la señal no se devuelve. Para mesas individuales, puedes cancelar con 24h de antelación.' },
+  { q: '¿Tienen opciones para alérgenos o intolerancias?', a: 'Sí. Solo necesitas indicarlo con un mínimo de 72 horas de antelación para que nuestro equipo de cocina prepare las adaptaciones necesarias.' },
+  { q: '¿Pueden venir niños?', a: 'Sí, tenemos menú infantil (14,50€) con opciones adaptadas. También organizamos cumpleaños y fiestas infantiles con zona reservada.' },
+  { q: '¿Se admiten mascotas en la terraza?', a: 'Sí, las mascotas son bienvenidas en la terraza exterior. Solo pedimos que estén atadas y no molesten al resto de clientes.' },
+  { q: '¿Hay algún mínimo de personas para reservar?', a: 'Para mesas individuales puedes reservar desde 1 persona. Para grupos y eventos, el mínimo es de 7 personas.' },
+  { q: '¿Se puede personalizar el menú de grupo?', a: 'Los menús de grupo son cerrados para garantizar la calidad del servicio. Si necesitas adaptaciones por alergias o intolerancias, no dudes en contactarnos con antelación.' },
+]
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={`faq__item ${open ? 'faq__item--open' : ''}`}>
+      <button className="faq__q" onClick={() => setOpen(o => !o)}>
+        <span>{q}</span>
+        <span className="faq__toggle">{open ? '−' : '+'}</span>
+      </button>
+      {open && <div className="faq__a"><p>{a}</p></div>}
+    </div>
+  )
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    RESERVATION FORM COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -672,6 +699,7 @@ export default function Home() {
     { id: 'carta', label: 'Carta' },
     { id: 'reservar', label: 'Reservar' },
     { id: 'eventos', label: 'Eventos' },
+    { id: 'faq', label: 'FAQ' },
     { id: 'contacto', label: 'Contacto' },
   ]
 
@@ -731,27 +759,53 @@ export default function Home() {
         </button>
       </section>
 
+      {/* ━━━ TRUST BAR ━━━ */}
+      <section className="trust-bar">
+        <div className="container">
+          <div className="trust-bar__grid">
+            <div className="trust-bar__item">
+              <span className="trust-bar__number">98</span>
+              <span className="trust-bar__text">Plazas disponibles</span>
+            </div>
+            <div className="trust-bar__item">
+              <span className="trust-bar__icon">☀️</span>
+              <span className="trust-bar__text">Terraza junto al agua</span>
+            </div>
+            <div className="trust-bar__item">
+              <span className="trust-bar__icon">👥</span>
+              <span className="trust-bar__text">Grupos y eventos</span>
+            </div>
+            <div className="trust-bar__item">
+              <span className="trust-bar__icon">📱</span>
+              <span className="trust-bar__text">Reserva online 24h</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ━━━ NOSOTROS ━━━ */}
       <section id="about" className="sec sec--cream">
         <div className="container">
           <Reveal>
-            <span className="sec__label">BIENVENIDOS</span>
-            <h2 className="sec__heading">Una experiencia<br />junto al canal</h2>
+            <span className="sec__label">RESTAURANTE</span>
+            <h2 className="sec__heading">Cocina mediterránea<br />junto al Canal Olímpico</h2>
             <div className="sec__line" />
           </Reveal>
 
           <div className="about-split">
             <Reveal className="about-split__txt">
               <p>
-                Situado en un enclave privilegiado junto al Canal Olímpico de Castelldefels,
-                nuestro restaurante ofrece una propuesta gastronómica mediterránea cuidada,
-                en un espacio diseñado para disfrutar de la mejor cocina al aire libre.
+                <strong>Terraza con vistas al agua, cocina mediterránea de calidad y un espacio perfecto para cualquier ocasión.</strong>
               </p>
               <p>
-                Con una amplia terraza, ambiente acogedor y un equipo dedicado,
-                somos el lugar ideal tanto para tu comida del día a día como para
-                celebrar los momentos más especiales.
+                Ya sea una comida entre amigos, una cena en familia o la celebración que llevas tiempo planeando — en Canal Olímpico tenemos el menú, el espacio y el equipo para hacerlo realidad.
               </p>
+              <p>
+                Menús de grupo desde 29€/persona con todo incluido. Reserva online en 2 minutos, sin llamar, sin esperar.
+              </p>
+              <button className="btn btn--gold" onClick={() => scrollTo('reservar')} style={{ marginTop: 12 }}>
+                Reservar ahora
+              </button>
             </Reveal>
             <Reveal className="about-split__img">
               <Image src="/terraza.jpg" alt="Terraza Canal Olímpico" width={580} height={400} className="about-photo" sizes="(max-width:768px) 100vw, 50vw" />
@@ -790,10 +844,10 @@ export default function Home() {
       <section id="carta" className="sec sec--white">
         <div className="container">
           <Reveal>
-            <span className="sec__label">GASTRONOMÍA</span>
-            <h2 className="sec__heading">Nuestra Carta</h2>
+            <span className="sec__label">NUESTROS MENÚS</span>
+            <h2 className="sec__heading">La carta para tu celebración</h2>
             <div className="sec__line" />
-            <p className="sec__sub">Menús diseñados para grupos y celebraciones. IVA incluido.</p>
+            <p className="sec__sub">Menús cerrados para grupos y eventos. Todo incluido, IVA incluido, sin sorpresas.</p>
           </Reveal>
         </div>
 
@@ -826,6 +880,11 @@ export default function Home() {
                   <div className="mc__foot">
                     <Icon.Wine /> {m.drinks}
                   </div>
+                  <div className="mc__cta">
+                    <button className="btn btn--gold btn--sm mc__cta-btn" onClick={() => scrollTo('reservar')}>
+                      Reservar con este menú
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>
@@ -845,8 +904,23 @@ export default function Home() {
                 }} />
             ))}
           </div>
-          <p className="menus-hint">← Desliza para ver más →</p>
+          <p className="menus-hint">← Desliza para ver todos los menús →</p>
         </Reveal>
+      </section>
+
+      {/* ━━━ CTA BANNER ━━━ */}
+      <section className="cta-banner">
+        <div className="cta-banner__overlay" />
+        <div className="container cta-banner__inner">
+          <Reveal>
+            <h2 className="cta-banner__title">¿Celebras algo especial?</h2>
+            <p className="cta-banner__sub">Cumpleaños, comuniones, comidas de empresa, fiestas privadas — reserva tu evento en 2 minutos.</p>
+            <div className="cta-banner__btns">
+              <button className="btn btn--gold btn--hero" onClick={() => scrollTo('reservar')}>Reservar evento</button>
+              <a href="tel:629358562" className="btn btn--outline-lt btn--hero">Llamar: 629 35 85 62</a>
+            </div>
+          </Reveal>
+        </div>
       </section>
 
       {/* ━━━ RESERVAR ━━━ */}
@@ -913,6 +987,78 @@ export default function Home() {
               <div className="cta__btns">
                 <a href="tel:629358562" className="btn btn--gold">Llamar: 629 35 85 62</a>
                 <a href="https://wa.me/34629358562" target="_blank" rel="noopener noreferrer" className="btn btn--outline-lt">WhatsApp</a>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ━━━ FAQ ━━━ */}
+      <section id="faq" className="sec sec--cream">
+        <div className="container">
+          <Reveal>
+            <span className="sec__label">PREGUNTAS FRECUENTES</span>
+            <h2 className="sec__heading">Todo lo que necesitas saber</h2>
+            <div className="sec__line" />
+          </Reveal>
+          <Reveal>
+            <div className="faq">
+              {FAQ_DATA.map((item, i) => <FaqItem key={i} q={item.q} a={item.a} />)}
+            </div>
+          </Reveal>
+          <Reveal>
+            <div style={{ textAlign: 'center', marginTop: 40 }}>
+              <p style={{ fontSize: '.95rem', color: 'var(--text)', marginBottom: 16 }}>¿No encuentras tu respuesta?</p>
+              <a href="https://wa.me/34629358562" target="_blank" rel="noopener noreferrer" className="btn btn--outline btn--sm">Escríbenos por WhatsApp</a>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ━━━ MAPA Y CONTACTO ━━━ */}
+      <section id="mapa" className="sec sec--white">
+        <div className="container">
+          <Reveal>
+            <span className="sec__label">CÓMO LLEGAR</span>
+            <h2 className="sec__heading">Encuéntranos</h2>
+            <div className="sec__line" />
+          </Reveal>
+          <Reveal>
+            <div className="map-contact">
+              <div className="map-contact__map">
+                <iframe
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2997.4!2d1.9795!3d41.2795!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12a49d43e5f2b3a7%3A0x4b3f3f3f3f3f3f3f!2sCanal%20Ol%C3%ADmpic%20de%20Catalunya!5e0!3m2!1ses!2ses!4v1700000000000"
+                  width="100%" height="400" style={{ border: 0, borderRadius: 'var(--radius)' }}
+                  allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+                  title="Ubicación Canal Olímpico"
+                />
+              </div>
+              <div className="map-contact__info">
+                <div className="map-contact__card">
+                  <h3>Restaurante Canal Olímpico</h3>
+                  <div className="map-contact__row">
+                    <Icon.MapPin />
+                    <p>Av. del Canal Olímpic, 2<br />08860 Castelldefels, Barcelona</p>
+                  </div>
+                  <div className="map-contact__row">
+                    <Icon.Clock />
+                    <div>
+                      <p><strong>L-V:</strong> 8:00 – 18:00</p>
+                      <p><strong>S-D:</strong> 9:00 – 18:00</p>
+                    </div>
+                  </div>
+                  <div className="map-contact__row">
+                    <Icon.Phone />
+                    <div>
+                      <p><a href="tel:938587088">938 58 70 88</a></p>
+                      <p><a href="tel:629358562">629 35 85 62</a></p>
+                    </div>
+                  </div>
+                  <div className="map-contact__actions">
+                    <button className="btn btn--gold" onClick={() => scrollTo('reservar')}>Reservar online</button>
+                    <a href="https://wa.me/34629358562" target="_blank" rel="noopener noreferrer" className="btn btn--outline">WhatsApp</a>
+                  </div>
+                </div>
               </div>
             </div>
           </Reveal>
