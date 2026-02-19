@@ -411,23 +411,39 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status')
-  const startDate = searchParams.get('start_date')
-  const fecha = searchParams.get('fecha')
+  try {
+    const { searchParams } = new URL(req.url)
+    const status = searchParams.get('status')
+    const startDate = searchParams.get('start_date')
+    const fecha = searchParams.get('fecha')
 
-  let query = supabaseAdmin
-    .from('reservations')
-    .select('*')
+    let query = supabaseAdmin
+      .from('reservations')
+      .select('*')
 
-  if (status) query = query.eq('status', status)
-  if (startDate) query = query.gte('fecha', startDate)
-  if (fecha) query = query.eq('fecha', fecha)
+    if (status) query = query.eq('status', status)
+    if (startDate) query = query.gte('fecha', startDate)
+    if (fecha) query = query.eq('fecha', fecha)
 
-  query = query.order('fecha', { ascending: true })
+    query = query.order('fecha', { ascending: true })
 
-  const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    const { data, error } = await query
 
-  return NextResponse.json(data || [])
+    if (error) {
+      console.error('[reservations GET] Supabase error:', error.message, error.details, error.hint)
+      return NextResponse.json(
+        { error: error.message, details: error.details || null },
+        { status: 500 }
+      )
+    }
+
+    console.log(`[reservations GET] OK — ${(data || []).length} reservas devueltas`)
+    return NextResponse.json(data || [])
+  } catch (err: any) {
+    console.error('[reservations GET] Unexpected error:', err?.message || err)
+    return NextResponse.json(
+      { error: 'Error interno al obtener reservas' },
+      { status: 500 }
+    )
+  }
 }

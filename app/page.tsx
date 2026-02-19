@@ -34,29 +34,27 @@ const Icon = {
 /* ─── Menu data ───────────────────────────────────────────────────────────── */
 const MENUS_DISPLAY = [
   { name: 'Menú Grupo Premium', price: '34€', priceSub: 'por persona', badge: 'PREMIUM', courses: [
-    { label: 'COMPARTIR', text: 'Embutidos ibéricos · Pan coca tomate · Bravas' },
-    { label: 'PRINCIPAL', text: 'Solomillo pimienta / Bacalao setas / Parrillada verduras' },
+    { label: 'PARA COMPARTIR', text: 'Surtido de embutidos ibéricos · Pan de coca con tomate, aceite de oliva y romero · Patatas bravas' },
+    { label: 'PARA ESCOGER', text: 'Solomillo de cerdo a la pimienta / Bacalao con cremoso de setas / Parrillada de verduras' },
     { label: 'POSTRE', text: 'Tarta o Helado' },
-  ], drinks: '1 bebida + agua + café/infusión', accent: 'terracota' as const },
+  ], drinks: '1 bebida + agua + café o infusión', accent: 'terracota' as const },
   { name: 'Menú Grupo', price: '29€', priceSub: 'por persona', badge: null, courses: [
-    { label: 'PRIMERO', text: 'Rigatoni crema tomate / Ensalada cabra frutos rojos' },
-    { label: 'PRINCIPAL', text: 'Solomillo pimienta verde / Lubina horno / Parrillada verduras' },
-    { label: 'POSTRE', text: 'Sorbete limón cava / Macedonia frutas' },
+    { label: 'PRIMERO', text: 'Rigatoni con crema suave de tomate / Ensalada de queso de cabra con frutos rojos' },
+    { label: 'PARA ESCOGER', text: 'Solomillo a la pimienta verde / Lubina al horno con patata panadera / Parrillada de verduras' },
+    { label: 'POSTRE', text: 'Sorbete de limón al cava / Macedonia de frutas' },
   ], drinks: '1 bebida + agua', accent: 'gold' as const },
   { name: 'Pica-Pica Premium', price: '34€', priceSub: 'por persona', badge: 'PREMIUM', courses: [
-    { label: 'SELECCIÓN', text: 'Embutidos ibéricos · Pan coca · Bravas' },
-    { label: 'MAR Y TIERRA', text: 'Brocheta sepia y gambas · Alcachofas jamón pato' },
-    { label: 'CLÁSICOS', text: 'Ensaladitas cabra · Saquitos carrillera · Croquetas · Minihamburguesas' },
-  ], drinks: '2 bebidas', accent: 'terracota' as const },
+    { label: 'SELECCIÓN', text: 'Surtido embutidos ibéricos · Pan de coca con tomate y aceite de oliva · Bravas · Brocheta sepia y gambas' },
+    { label: 'CLÁSICOS', text: 'Alcachofas con jamón de pato · Miniensaladas de queso de cabra con frutos rojos · Saquitos de carrillera · Croquetas · Minihamburguesas en pan de brioxe' },
+  ], drinks: '2 bebidas (refresco / vino / cerveza)', accent: 'terracota' as const },
   { name: 'Pica-Pica', price: '30€', priceSub: 'por persona', badge: null, courses: [
-    { label: 'SELECCIÓN', text: 'Tortilla patatas · Croquetas' },
-    { label: 'CLÁSICOS', text: 'Minihamburguesas brioxe · Calamarcitos andaluza' },
-    { label: 'SNACKS', text: 'Fingers pollo · Nachos guacamole' },
-  ], drinks: '2 bebidas', accent: 'gold' as const },
+    { label: 'SELECCIÓN', text: 'Tacos de tortilla de patatas · Mix de croquetas · Minihamburguesas en pan de brioxe · Calamarcitos a la andaluza' },
+    { label: 'CLÁSICOS', text: 'Fingers de pollo · Nachos con guacamole, chile y pico de gallo' },
+  ], drinks: '2 bebidas (refresco / vino / cerveza)', accent: 'gold' as const },
   { name: 'Menú Infantil', price: '14,50€', priceSub: 'por niño', badge: null, courses: [
-    { label: 'PRINCIPAL', text: 'Macarrones tomate / Hamburguesa patatas / Fingers pollo / Canelones' },
+    { label: 'PRINCIPAL', text: 'Macarrones tomate / Hamburguesa con patatas / Fingers de pollo / Canelones' },
     { label: 'POSTRE', text: 'Tarta / Helado / Yogur' },
-  ], drinks: '1 refresco/zumo/agua', accent: 'terracota' as const },
+  ], drinks: '1 refresco / zumo / agua', accent: 'terracota' as const },
   { name: 'Menú Padres/Adultos', price: '38€', priceSub: 'por persona', badge: null, courses: [
     { label: 'MENÚ COMPLETO', text: 'Para adultos acompañantes en eventos infantiles' },
   ], drinks: '1 bebida + agua + café', accent: 'gold' as const },
@@ -702,14 +700,20 @@ export default function Home() {
       <section id="hero" className="hero">
         <Image src="/hero.jpg" alt="Canal Olímpico Restaurante" fill priority className="hero__img" sizes="100vw" />
         <div className="hero__overlay" />
+        <div className="hero__grain" />
         <div className="hero__content">
-          <span className="hero__tag">Restaurante · Terraza · Eventos</span>
-          <h1 className="hero__title">CANAL<br />OLÍMPICO</h1>
-          <div className="hero__line" />
-          <p className="hero__loc">Av. del Canal Olímpic, 2 — Castelldefels, Barcelona</p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn--gold" onClick={() => scrollTo('reservar')}>Reservar Ahora</button>
-            <button className="btn btn--outline-lt" onClick={() => scrollTo('carta')}>Ver Carta</button>
+          <span className="hero__tag hero__anim" style={{ animationDelay: '.3s' }}>Restaurante · Terraza · Eventos</span>
+          <h1 className="hero__title">
+            <span className="hero__title-top hero__anim" style={{ animationDelay: '.6s' }}>Canal</span>
+            <span className="hero__title-bot hero__anim" style={{ animationDelay: '.8s' }}>Olímpico</span>
+          </h1>
+          <div className="hero__ornament hero__anim" style={{ animationDelay: '1s' }}>
+            <svg viewBox="0 0 120 12" fill="none"><line x1="0" y1="6" x2="48" y2="6" stroke="currentColor" strokeWidth=".5" /><circle cx="60" cy="6" r="3" stroke="currentColor" strokeWidth=".5" fill="none" /><line x1="72" y1="6" x2="120" y2="6" stroke="currentColor" strokeWidth=".5" /></svg>
+          </div>
+          <p className="hero__loc hero__anim" style={{ animationDelay: '1.2s' }}>Castelldefels, Barcelona</p>
+          <div className="hero__buttons hero__anim" style={{ animationDelay: '1.4s' }}>
+            <button className="btn btn--gold" onClick={() => scrollTo('reservar')}>Reservar Mesa</button>
+            <button className="btn btn--outline-lt" onClick={() => scrollTo('carta')}>Descubrir Carta</button>
           </div>
         </div>
         <button className="hero__arrow" onClick={() => scrollTo('about')} aria-label="Scroll">
@@ -929,7 +933,13 @@ export default function Home() {
           <div className="foot__line" />
           <div className="foot__bottom">
             <p>© {new Date().getFullYear()} Canal Olímpico — Todos los derechos reservados</p>
-            <Link href="/login" className="foot__admin">Acceso Panel</Link>
+            <div className="foot__legal">
+              <Link href="/condiciones" className="foot__legal-link">Condiciones</Link>
+              <span className="foot__legal-sep">·</span>
+              <Link href="/cookies" className="foot__legal-link">Cookies</Link>
+              <span className="foot__legal-sep">·</span>
+              <Link href="/login" className="foot__admin">Panel</Link>
+            </div>
           </div>
         </div>
       </footer>
