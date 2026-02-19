@@ -700,20 +700,30 @@ export default function Home() {
       <section id="hero" className="hero">
         <Image src="/hero.jpg" alt="Canal Olímpico Restaurante" fill priority className="hero__img" sizes="100vw" />
         <div className="hero__overlay" />
+        <div className="hero__vignette" />
         <div className="hero__grain" />
         <div className="hero__content">
-          <span className="hero__tag hero__anim" style={{ animationDelay: '.3s' }}>Restaurante · Terraza · Eventos</span>
+          <div className="hero__gold-line hero__anim" style={{ animationDelay: '.2s' }} />
+          <span className="hero__tag hero__anim" style={{ animationDelay: '.4s' }}>Restaurante · Terraza · Eventos</span>
           <h1 className="hero__title">
-            <span className="hero__title-top hero__anim" style={{ animationDelay: '.6s' }}>Canal</span>
-            <span className="hero__title-bot hero__anim" style={{ animationDelay: '.8s' }}>Olímpico</span>
+            <span className="hero__title-top hero__anim" style={{ animationDelay: '.7s' }}>Canal</span>
+            <span className="hero__title-bot hero__anim" style={{ animationDelay: '.9s' }}>Olímpico</span>
           </h1>
-          <div className="hero__ornament hero__anim" style={{ animationDelay: '1s' }}>
-            <svg viewBox="0 0 120 12" fill="none"><line x1="0" y1="6" x2="48" y2="6" stroke="currentColor" strokeWidth=".5" /><circle cx="60" cy="6" r="3" stroke="currentColor" strokeWidth=".5" fill="none" /><line x1="72" y1="6" x2="120" y2="6" stroke="currentColor" strokeWidth=".5" /></svg>
+          <div className="hero__ornament hero__anim" style={{ animationDelay: '1.1s' }}>
+            <svg viewBox="0 0 200 16" fill="none">
+              <line x1="0" y1="8" x2="78" y2="8" stroke="url(#goldGrad)" strokeWidth=".7" />
+              <path d="M90 8L96 2L102 8L96 14Z" stroke="url(#goldGrad)" strokeWidth=".7" fill="none" />
+              <line x1="114" y1="8" x2="200" y2="8" stroke="url(#goldGrad)" strokeWidth=".7" />
+              <defs><linearGradient id="goldGrad" x1="0" y1="0" x2="200" y2="0"><stop offset="0%" stopColor="transparent" /><stop offset="20%" stopColor="#B08D57" /><stop offset="50%" stopColor="#d4b87a" /><stop offset="80%" stopColor="#B08D57" /><stop offset="100%" stopColor="transparent" /></linearGradient></defs>
+            </svg>
           </div>
-          <p className="hero__loc hero__anim" style={{ animationDelay: '1.2s' }}>Castelldefels, Barcelona</p>
-          <div className="hero__buttons hero__anim" style={{ animationDelay: '1.4s' }}>
-            <button className="btn btn--gold" onClick={() => scrollTo('reservar')}>Reservar Mesa</button>
-            <button className="btn btn--outline-lt" onClick={() => scrollTo('carta')}>Descubrir Carta</button>
+          <p className="hero__subtitle hero__anim" style={{ animationDelay: '1.3s' }}>Gastronomía mediterránea junto al agua</p>
+          <p className="hero__loc hero__anim" style={{ animationDelay: '1.5s' }}>
+            <span className="hero__loc-icon">◆</span> Castelldefels, Barcelona
+          </p>
+          <div className="hero__buttons hero__anim" style={{ animationDelay: '1.7s' }}>
+            <button className="btn btn--gold btn--hero" onClick={() => scrollTo('reservar')}>Reservar Mesa</button>
+            <button className="btn btn--outline-lt btn--hero" onClick={() => scrollTo('carta')}>Descubrir Carta</button>
           </div>
         </div>
         <button className="hero__arrow" onClick={() => scrollTo('about')} aria-label="Scroll">
