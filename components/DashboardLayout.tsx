@@ -29,6 +29,13 @@ const navSections = [
     ],
   },
   {
+    label: 'Equipo',
+    items: [
+      { href: '/employees', label: 'Empleados', icon: '👥' },
+      { href: '/schedules', label: 'Horarios', icon: '🕐' },
+    ],
+  },
+  {
     label: 'Sistema',
     items: [
       { href: '/settings', label: 'Configuración', icon: '⚙️' },

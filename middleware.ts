@@ -74,7 +74,7 @@ const WEBHOOK_PATHS = [
 ]
 
 // ─── Paths that need dashboard auth check ────────────────────────────────────
-const PROTECTED_PATHS = ['/dashboard', '/calendar', '/menus', '/payments', '/reservations', '/settings', '/tables']
+const PROTECTED_PATHS = ['/dashboard', '/calendar', '/menus', '/payments', '/reservations', '/settings', '/tables', '/employees', '/schedules']
 
 export function middleware(req: NextRequest) {
   cleanup()
