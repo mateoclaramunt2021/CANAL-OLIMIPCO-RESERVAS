@@ -64,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pathname === href || pathname?.startsWith(href + '/')
 
   return (
-    <div className="min-h-screen" style={{ background: '#f5f3ee' }}>
+    <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: '#f5f3ee' }}>
       {/* ── Mobile overlay ── */}
       {sidebarOpen && (
         <div
@@ -195,8 +195,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="w-9" /> {/* Spacer for centering */}
       </div>
 
+      {/* ── Spacer for fixed sidebar on desktop ── */}
+      <div className="hidden lg:block w-64 flex-shrink-0" aria-hidden />
+
       {/* ── Main content ── */}
-      <main className="lg:ml-64 min-h-screen w-full lg:w-[calc(100%-16rem)] overflow-x-hidden">
+      <main className="flex-1 min-w-0 min-h-screen overflow-x-hidden">
         {children}
       </main>
     </div>

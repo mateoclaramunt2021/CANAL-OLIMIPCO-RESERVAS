@@ -39,9 +39,11 @@
   --transition:  .35s cubic-bezier(.25,.46,.45,.94);
 }
 
-/* ─── Reset ───────────────────────────────────────────────────────────────── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* ─── Reset (inside @layer base so Tailwind utilities can override) ──────── */
+@layer base {
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+}
 
 .landing{
   font-family:var(--font-body);color:var(--ink-soft);
