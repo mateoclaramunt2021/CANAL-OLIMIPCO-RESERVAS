@@ -19,10 +19,9 @@ interface Reservation {
   table_id: string | null
   menu_code: string | null
   menu_payload: any
-  deposit_paid: boolean
-  deposit_paid_at: string | null
   payment_deadline: string | null
   stripe_checkout_url: string | null
+  stripe_session_id: string | null
   canceled_reason: string | null
   is_exclusive: boolean
   created_at: string
@@ -249,7 +248,7 @@ export default function ReservationDetail() {
                 <InfoItem label="Menú" value={reservation.menu_code ? (menuLabels[reservation.menu_code] || reservation.menu_code) : 'N/A'} />
                 <InfoItem label="Total" value={reservation.total_amount ? `${reservation.total_amount.toFixed(2)}€` : '—'} highlight />
                 <InfoItem label="Señal (40%)" value={reservation.deposit_amount ? `${reservation.deposit_amount.toFixed(2)}€` : '—'} />
-                <InfoItem label="Señal Pagada" value={reservation.deposit_paid ? `Sí (${reservation.deposit_paid_at ? new Date(reservation.deposit_paid_at).toLocaleString('es-ES') : ''})` : 'No'} />
+                <InfoItem label="Señal Pagada" value={reservation.status === 'CONFIRMED' && reservation.stripe_session_id ? 'Sí' : 'No'} />
                 <InfoItem label="Límite de Pago" value={reservation.payment_deadline ? new Date(reservation.payment_deadline).toLocaleString('es-ES') : 'N/A'} />
               </div>
               {reservation.canceled_reason && (
@@ -386,7 +385,7 @@ export default function ReservationDetail() {
                 >
                   💬 Abrir WhatsApp Web
                 </a>
-                {reservation.stripe_checkout_url && !reservation.deposit_paid && (
+                {reservation.stripe_checkout_url && reservation.status !== 'CONFIRMED' && (
                   <a
                     href={reservation.stripe_checkout_url}
                     target="_blank"

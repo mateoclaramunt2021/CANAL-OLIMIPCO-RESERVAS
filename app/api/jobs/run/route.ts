@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendAutoCancel, sendText } from '@/lib/whatsapp'
 import { PAYMENT_DEADLINE_DAYS } from '@/core/menus'
+import { notifyAutoCancel, notifyReminderSent } from '@/lib/telegram'
 
 // ─── POST: Cron Job — ejecutar tareas programadas ───────────────────────────
 // Llamar periódicamente (ej: cada hora desde Vercel Cron o un servicio externo)
 //
 // Tareas:
-// 1. Cancelar reservas HOLD_BLOCKED cuyo plazo de pago (4 días) ha expirado
+// 1. Cancelar reservas HOLD_BLOCKED cuyo plazo de pago (5 días) ha expirado
 // 2. Enviar recordatorio 5 días antes del evento (confirmar asistentes/platos)
 
 export async function POST(req: NextRequest) {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // ── 1. Cancelar reservas sin pagar tras 4 días ──
+    // ── 1. Cancelar reservas sin pagar tras 5 días ──
     const deadlineDate = new Date()
     deadlineDate.setDate(deadlineDate.getDate() - PAYMENT_DEADLINE_DAYS)
 
@@ -44,6 +45,13 @@ export async function POST(req: NextRequest) {
             reservationId: res.id,
           })
         }
+
+        // Telegram alert
+        notifyAutoCancel({
+          reservationId: res.id,
+          nombre: res.customer_name || 'Cliente',
+          fecha: res.fecha,
+        }).catch(err => console.error('[jobs/run] Telegram cancel error:', err))
 
         results.expired_cancelled++
       } catch (err) {
@@ -79,6 +87,15 @@ export async function POST(req: NextRequest) {
               `¡Te esperamos! 📍 Canal Olímpico, Castelldefels`
 
           await sendText(res.customer_phone, message)
+
+          // Telegram alert
+          notifyReminderSent({
+            reservationId: res.id,
+            nombre: res.customer_name || 'Cliente',
+            fecha: res.fecha,
+            eventType: res.event_type || 'RESERVA_NORMAL',
+          }).catch(err => console.error('[jobs/run] Telegram reminder error:', err))
+
           results.reminders_sent++
         }
       } catch (err) {

@@ -19,8 +19,17 @@ interface Reservation {
   deposit_amount: number
   table_id: string | null
   menu_code: string | null
-  deposit_paid: boolean
   payment_deadline: string | null
+  created_at: string
+}
+
+interface CallLog {
+  id: string
+  vapi_call_id: string | null
+  duration: number
+  transcript: string | null
+  summary: string | null
+  reservation_id: string | null
   created_at: string
 }
 
@@ -62,19 +71,31 @@ function toDateStr(d: Date) {
 
 export default function Dashboard() {
   const [reservations, setReservations] = useState<Reservation[]>([])
+  const [callLogs, setCallLogs] = useState<CallLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
   const [realtimeConnected, setRealtimeConnected] = useState(false)
   const [newReservationFlash, setNewReservationFlash] = useState<string | null>(null)
+  const [newCallFlash, setNewCallFlash] = useState<string | null>(null)
+  const [expandedCall, setExpandedCall] = useState<string | null>(null)
 
   const fetchReservations = useCallback(async () => {
     try {
       setError(null)
-      const res = await fetch('/api/reservations')
-      if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
-      const data = await res.json()
-      setReservations(Array.isArray(data) ? data : [])
+      const [resRes, callsRes] = await Promise.all([
+        fetch('/api/reservations'),
+        fetch('/api/calls?limit=30'),
+      ])
+      if (!resRes.ok) throw new Error(`Error ${resRes.status}: ${resRes.statusText}`)
+      const resData = await resRes.json()
+      setReservations(Array.isArray(resData) ? resData : [])
+
+      if (callsRes.ok) {
+        const callsData = await callsRes.json()
+        setCallLogs(Array.isArray(callsData.calls) ? callsData.calls : [])
+      }
+
       setLastUpdate(new Date())
     } catch (err: any) {
       console.error('[Dashboard] Fetch error:', err)
@@ -89,15 +110,18 @@ export default function Dashboard() {
 
     // Supabase Realtime subscription
     let channel: any = null
+    let callChannel: any = null
     try {
       const realtimeClient = createRealtimeClient()
+
+      // ── Reservations realtime ──
       channel = realtimeClient
         .channel('reservations-dashboard')
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'reservations' },
           (payload: any) => {
-            console.log('[Realtime] Change received:', payload.eventType)
+            console.log('[Realtime] Reservation change:', payload.eventType)
             setLastUpdate(new Date())
 
             if (payload.eventType === 'INSERT') {
@@ -120,8 +144,35 @@ export default function Dashboard() {
           }
         )
         .subscribe((status: string) => {
-          console.log('[Realtime] Status:', status)
-          setRealtimeConnected(status === 'SUBSCRIBED')
+          console.log('[Realtime] Reservations status:', status)
+          if (status === 'SUBSCRIBED') setRealtimeConnected(true)
+        })
+
+      // ── Call logs realtime ──
+      callChannel = realtimeClient
+        .channel('calls-dashboard')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'call_logs' },
+          (payload: any) => {
+            console.log('[Realtime] Call change:', payload.eventType)
+            setLastUpdate(new Date())
+
+            if (payload.eventType === 'INSERT') {
+              const newCall = payload.new as CallLog
+              setCallLogs(prev => [newCall, ...prev.slice(0, 29)])
+              setNewCallFlash(newCall.id)
+              setTimeout(() => setNewCallFlash(null), 4000)
+            } else if (payload.eventType === 'UPDATE') {
+              const updated = payload.new as CallLog
+              setCallLogs(prev =>
+                prev.map(c => c.id === updated.id ? updated : c)
+              )
+            }
+          }
+        )
+        .subscribe((status: string) => {
+          console.log('[Realtime] Calls status:', status)
         })
     } catch (err) {
       console.error('[Realtime] Setup error:', err)
@@ -133,6 +184,7 @@ export default function Dashboard() {
     return () => {
       clearInterval(interval)
       if (channel) channel.unsubscribe()
+      if (callChannel) callChannel.unsubscribe()
     }
   }, [fetchReservations])
 
@@ -165,6 +217,8 @@ export default function Dashboard() {
     revenue: reservations
       .filter(r => r.status !== 'CANCELED')
       .reduce((sum, r) => sum + (r.total_amount || 0), 0),
+    callsToday: callLogs.filter(c => c.created_at && c.created_at.startsWith(today)).length,
+    callsTotal: callLogs.length,
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -217,12 +271,13 @@ export default function Dashboard() {
         )}
 
         {/* ── Stats Grid ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
           {[
             { label: 'Hoy', value: todayReservations.length, sub: `${todayPersonas} personas`, accent: '#1a1a1a' },
             { label: 'Mañana', value: tomorrowReservations.length, sub: `${tomorrowPersonas} personas`, accent: '#B08D57' },
             { label: 'Confirmadas', value: stats.confirmed, sub: 'total activas', accent: '#6b9080' },
             { label: 'Pago pendiente', value: stats.pending, sub: 'por cobrar', accent: '#c4802f' },
+            { label: 'Llamadas', value: stats.callsToday, sub: `${stats.callsTotal} total`, accent: '#6366f1' },
             { label: 'Ingresos', value: `${stats.revenue.toFixed(0)}€`, sub: 'estimados', accent: '#B08D57' },
           ].map((stat, i) => (
             <div
@@ -338,6 +393,55 @@ export default function Dashboard() {
                             </span>
                           </Link>
                         ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── VAPI Calls Panel ── */}
+              <div className="rounded-xl border overflow-hidden" style={{ background: '#faf9f6', borderColor: '#e8e2d6' }}>
+                <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e8e2d6' }}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-lg">📞</span>
+                    <h2 className="text-lg font-light" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#1a1a1a' }}>
+                      Llamadas VAPI
+                    </h2>
+                    {stats.callsToday > 0 && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                        {stats.callsToday} hoy
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${realtimeConnected ? 'bg-indigo-500 animate-pulse' : 'bg-amber-400'}`}></span>
+                    <span className="text-[10px]" style={{ color: '#8a8578' }}>
+                      {realtimeConnected ? 'En vivo' : 'Polling'}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-4">
+                  {callLogs.length === 0 ? (
+                    <div className="text-center py-10">
+                      <p className="text-4xl mb-2">📞</p>
+                      <p className="text-sm" style={{ color: '#8a8578' }}>Sin llamadas registradas</p>
+                      <p className="text-xs mt-1" style={{ color: '#b0a898' }}>Las llamadas de VAPI aparecerán aquí en tiempo real</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {callLogs.slice(0, 10).map(call => (
+                        <CallLogRow
+                          key={call.id}
+                          call={call}
+                          isNew={newCallFlash === call.id}
+                          isExpanded={expandedCall === call.id}
+                          onToggle={() => setExpandedCall(expandedCall === call.id ? null : call.id)}
+                        />
+                      ))}
+                      {callLogs.length > 10 && (
+                        <p className="text-center text-xs pt-2" style={{ color: '#8a8578' }}>
+                          +{callLogs.length - 10} llamadas anteriores
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -471,5 +575,179 @@ function ReservationRow({ r, isNew }: { r: Reservation; isNew: boolean }) {
         {statusLabels[r.status] || r.status}
       </span>
     </Link>
+  )
+}
+
+// ─── Call Log Row Component ─────────────────────────────────────────────────
+
+const callStatusColors: Record<string, string> = {
+  'customer-ended-call': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'assistant-ended-call': 'bg-blue-50 text-blue-700 border-blue-200',
+  completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  initiated: 'bg-amber-50 text-amber-700 border-amber-200',
+  'no-answer': 'bg-stone-100 text-stone-500 border-stone-200',
+  failed: 'bg-red-50 text-red-700 border-red-200',
+  error: 'bg-red-50 text-red-700 border-red-200',
+}
+
+const callStatusLabels: Record<string, string> = {
+  'customer-ended-call': 'Completada',
+  'assistant-ended-call': 'IA finalizó',
+  completed: 'Completada',
+  initiated: 'En curso',
+  'no-answer': 'Sin respuesta',
+  failed: 'Fallida',
+  error: 'Error',
+}
+
+function formatDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return '0s'
+  const m = Math.floor(seconds / 60)
+  const s = Math.round(seconds % 60)
+  if (m === 0) return `${s}s`
+  return `${m}m ${s}s`
+}
+
+function formatPhoneDisplay(phone: string | null): string {
+  if (!phone) return 'Desconocido'
+  // Show last 4 digits masked
+  if (phone.length > 6) {
+    return `···${phone.slice(-4)}`
+  }
+  return phone
+}
+
+function formatCallTime(isoString: string): string {
+  try {
+    const d = new Date(isoString)
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    const diffMin = Math.floor(diffMs / 60000)
+    const diffH = Math.floor(diffMs / 3600000)
+
+    if (diffMin < 1) return 'Ahora mismo'
+    if (diffMin < 60) return `Hace ${diffMin} min`
+    if (diffH < 24) return `Hace ${diffH}h`
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return ''
+  }
+}
+
+function CallLogRow({
+  call,
+  isNew,
+  isExpanded,
+  onToggle,
+}: {
+  call: CallLog
+  isNew: boolean
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const derivedStatus = call.summary?.startsWith('BAPI') ? 'initiated' : (call.duration > 0 ? 'completed' : 'missed')
+  const statusClass = callStatusColors[derivedStatus] || 'bg-stone-100 text-stone-500 border-stone-200'
+  const statusLabel = callStatusLabels[derivedStatus] || derivedStatus
+
+  return (
+    <div
+      className={`rounded-lg border transition-all ${isNew ? 'ring-2 ring-indigo-300 ring-offset-1' : ''}`}
+      style={{
+        borderColor: isNew ? '#818cf8' : '#e8e2d6',
+        background: isNew ? '#eef2ff' : '#ffffff',
+      }}
+    >
+      {/* ── Main row ── */}
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-3.5 text-left hover:bg-stone-50/50 transition-colors rounded-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
+          >
+            📞
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium" style={{ color: '#1a1a1a' }}>
+                {call.vapi_call_id ? `Llamada ${call.vapi_call_id.substring(0, 8)}…` : 'Llamada'}
+              </p>
+              <span className="text-xs" style={{ color: '#b0a898' }}>·</span>
+              <span className="text-xs" style={{ color: '#8a8578' }}>
+                {formatDuration(call.duration)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="text-xs" style={{ color: '#8a8578' }}>
+                {formatCallTime(call.created_at)}
+              </p>
+
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border ${statusClass}`}>
+            {statusLabel}
+          </span>
+          <span className="text-xs" style={{ color: '#b0a898', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+            ▼
+          </span>
+        </div>
+      </button>
+
+      {/* ── Expanded details ── */}
+      {isExpanded && (
+        <div className="px-4 pb-4 border-t" style={{ borderColor: '#e8e2d6' }}>
+          {/* Summary */}
+          {call.summary && (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#8a8578' }}>
+                Resumen IA
+              </p>
+              <p className="text-xs leading-relaxed p-2.5 rounded-lg" style={{ background: '#f5f3ee', color: '#3a3630' }}>
+                {call.summary}
+              </p>
+            </div>
+          )}
+
+          {/* Transcript */}
+          {call.transcript && (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#8a8578' }}>
+                Transcripción
+              </p>
+              <div
+                className="text-xs leading-relaxed p-2.5 rounded-lg max-h-48 overflow-y-auto"
+                style={{ background: '#f5f3ee', color: '#3a3630' }}
+              >
+                <pre className="whitespace-pre-wrap font-sans">{call.transcript}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* Metadata */}
+          <div className="mt-3 flex flex-wrap gap-3 text-[10px]" style={{ color: '#8a8578' }}>
+            {call.vapi_call_id && (
+              <span>🔗 {call.vapi_call_id.substring(0, 12)}…</span>
+            )}
+            <span>
+              🕐 {new Date(call.created_at).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+              })}
+            </span>
+          </div>
+
+          {/* No data */}
+          {!call.summary && !call.transcript && (
+            <p className="mt-3 text-xs italic" style={{ color: '#b0a898' }}>
+              Sin resumen ni transcripción disponible para esta llamada.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

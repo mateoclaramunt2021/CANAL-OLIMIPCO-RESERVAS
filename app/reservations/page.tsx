@@ -17,7 +17,6 @@ interface Reservation {
   deposit_amount: number
   personas: number
   table_id: string | null
-  deposit_paid: boolean
 }
 
 const statusColors: Record<string, string> = {

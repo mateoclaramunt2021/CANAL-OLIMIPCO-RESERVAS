@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
 import { sendPaymentConfirmation } from '@/lib/whatsapp'
+import { notifyPaymentReceived } from '@/lib/telegram'
 
 // ─── POST: Webhook de Stripe ────────────────────────────────────────────────
 // Cuando el cliente paga la señal del 40%, Stripe nos avisa aquí.
@@ -45,8 +46,6 @@ export async function POST(req: NextRequest) {
           .from('reservations')
           .update({
             status: 'CONFIRMED',
-            deposit_paid: true,
-            deposit_paid_at: new Date().toISOString(),
             stripe_session_id: session.id,
           })
           .eq('id', reservationId)
@@ -81,6 +80,14 @@ export async function POST(req: NextRequest) {
         }
 
         console.log(`[stripe-webhook] Reservation ${reservationId} confirmed, payment ${session.amount_total! / 100}€`)
+
+        // 4. Telegram notification
+        notifyPaymentReceived({
+          reservationId,
+          nombre: reservation?.customer_name || 'Cliente',
+          fecha: reservation?.fecha || '',
+          amount: session.amount_total! / 100,
+        }).catch(err => console.error('[stripe-webhook] Telegram error:', err))
       } catch (err) {
         console.error('[stripe-webhook] Error processing payment:', err)
       }

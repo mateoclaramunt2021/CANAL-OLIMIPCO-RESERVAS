@@ -18,10 +18,11 @@ export function validateRules(draft: {
   const localTime = new Date(draft.start_datetime.getTime() + (1 * 60 * 60 * 1000)) // Approx Madrid
   const hour = localTime.getHours()
 
-  if (draft.event_type === 'infantil' && hour > 20) {
+  const minutes = localTime.getMinutes()
+  if (draft.event_type === 'infantil' && (hour > 20 || (hour === 20 && minutes > 30))) {
     errors.push('Cumpleaños infantil solo hasta las 20:30')
   }
-  if (draft.event_type === 'nocturna' && hour < 21) {
+  if (draft.event_type === 'nocturna' && (hour < 21 || (hour === 21 && minutes < 30))) {
     errors.push('Nocturna solo desde las 21:30')
   }
   if (draft.event_type === 'nocturna' && draft.total_amount < 1000) {

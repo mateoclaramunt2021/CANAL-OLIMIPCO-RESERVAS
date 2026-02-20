@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sanitize } from '@/lib/security'
+import { notifyVapiCallEnded } from '@/lib/telegram'
 
 // ─── VAPI Server URL / Webhook ──────────────────────────────────────────────
 // Este endpoint recibe las function calls de VAPI y los end-of-call reports.
@@ -48,20 +50,25 @@ export async function POST(req: NextRequest) {
 
       // Guardar el call log si hay reservation_id en los metadata
       const callData: Record<string, unknown> = {
-        provider: 'vapi',
         vapi_call_id: payload.message.call?.id || null,
-        status: payload.message.endedReason || 'completed',
-        duration_seconds: payload.message.durationSeconds || 0,
-        cost: payload.message.cost || 0,
+        duration: payload.message.durationSeconds || 0,
         transcript: payload.message.transcript || null,
         summary: payload.message.summary || null,
-        phone_number: payload.message.call?.customer?.number || null,
         created_at: new Date().toISOString(),
       }
 
       await supabaseAdmin
         .from('call_logs')
         .insert(callData)
+
+      // Telegram notification
+      notifyVapiCallEnded({
+        callId: payload.message.call?.id || undefined,
+        phone: payload.message.call?.customer?.number || undefined,
+        duration: payload.message.durationSeconds || undefined,
+        summary: payload.message.summary || undefined,
+        endedReason: payload.message.endedReason || undefined,
+      }).catch(err => console.error('[VAPI webhook] Telegram error:', err))
 
       return NextResponse.json({ ok: true })
     }
@@ -94,6 +101,9 @@ async function handleCreateReservation(
 ) {
   const { nombre, telefono, fecha, hora, personas, event_type, zona, menu_code } = params
 
+  // Sanitize VAPI inputs
+  const safeName = nombre ? sanitize(String(nombre)) : 'Cliente VAPI'
+
   // Si VAPI no extrajo el teléfono, intentar sacarlo del call metadata
   const phone = telefono || vapiPayload.message?.call?.customer?.number || null
 
@@ -103,7 +113,7 @@ async function handleCreateReservation(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nombre: nombre || 'Cliente VAPI',
+        nombre: safeName,
         telefono: phone,
         fecha,   // YYYY-MM-DD
         hora,    // HH:mm

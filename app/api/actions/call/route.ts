@@ -16,8 +16,7 @@ export async function POST(req: NextRequest) {
       .from('call_logs')
       .insert({
         reservation_id,
-        provider: 'bapi',
-        status: 'initiated'
+        summary: 'BAPI call initiated',
       })
 
     return NextResponse.json({ called: true })

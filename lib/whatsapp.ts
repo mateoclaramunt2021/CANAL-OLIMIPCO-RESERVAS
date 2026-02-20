@@ -300,9 +300,8 @@ async function saveMessage(
     if (resId) {
       await supabaseAdmin.from('messages').insert({
         reservation_id: resId,
-        channel: 'whatsapp',
         direction,
-        content,
+        body: content,
       })
     }
   } catch (err) {

@@ -31,9 +31,8 @@ export async function POST(req: NextRequest) {
   await supabaseAdmin
     .from('call_logs')
     .update({
-      status,
       transcript,
-      raw_payload: body
+      summary: status || 'updated',
     })
     .eq('id', call_id) // Asumir que call_id es el id de call_logs
 

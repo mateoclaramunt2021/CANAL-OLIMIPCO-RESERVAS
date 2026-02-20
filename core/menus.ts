@@ -2,7 +2,7 @@
 //
 // Precios con IVA incluido.
 // Señal: 40% del total.
-// Plazo de pago: 4 días máximo tras reservar.
+// Plazo de pago: 5 días (120h) máximo tras reservar.
 // Antelación mínima: 5 días antes del evento.
 // Modificar asistentes: 72h antes. Alergias: 72h antes.
 // Cancelación: 72h antes → señal retenida nueva fecha. Fuera plazo → se pierde.
@@ -29,6 +29,8 @@ export interface QuoteResult {
   menu: MenuItem
   personas: number
   subtotal_menu: number
+  drink_tickets: number
+  subtotal_drink_tickets: number
   extras_horarios: ExtraHorario[]
   subtotal_extras: number
   total: number
@@ -129,7 +131,7 @@ export const EXTRAS_HORARIOS: ExtraHorario[] = [
 // ─── Constantes de negocio ───────────────────────────────────────────────────
 
 export const DEPOSIT_PERCENTAGE = 0.40     // 40%
-export const PAYMENT_DEADLINE_DAYS = 4     // 4 días para pagar
+export const PAYMENT_DEADLINE_DAYS = 5     // 5 días (120h) para pagar
 export const MIN_ADVANCE_DAYS = 5          // Mínimo 5 días de antelación
 export const CANCEL_NOTICE_HOURS = 72      // 72h para cancelar/modificar
 export const ALLERGY_NOTICE_HOURS = 72     // 72h para avisar alergias
@@ -231,11 +233,13 @@ export function calculateQuote(
   menuCode: string,
   personas: number,
   extrasHorariosCodes?: string[], // ['01:00-02:00', '02:00-03:00']
+  drinkTickets: number = 0,       // Tickets de bebida extra (3€ c/u)
 ): QuoteResult | { error: string } {
   const menu = findMenu(menuCode)
   if (!menu) return { error: `Menú "${menuCode}" no encontrado` }
 
   const subtotal_menu = menu.price * personas
+  const subtotal_drink_tickets = drinkTickets * 3
 
   const extras: ExtraHorario[] = []
   let subtotal_extras = 0
@@ -250,13 +254,15 @@ export function calculateQuote(
     }
   }
 
-  const total = subtotal_menu + subtotal_extras
+  const total = subtotal_menu + subtotal_drink_tickets + subtotal_extras
   const deposit = Math.round(total * DEPOSIT_PERCENTAGE * 100) / 100
 
   return {
     menu,
     personas,
     subtotal_menu,
+    drink_tickets: drinkTickets,
+    subtotal_drink_tickets,
     extras_horarios: extras,
     subtotal_extras,
     total,
@@ -275,6 +281,10 @@ export function formatQuoteMessage(quote: QuoteResult, reservationRef: string): 
     `🍽️ *${quote.menu.name}*`,
     `👥 ${quote.personas} personas × ${quote.menu.price}€ = ${quote.subtotal_menu}€`,
   ]
+
+  if (quote.drink_tickets > 0) {
+    lines.push(`🍺 ${quote.drink_tickets} tickets bebida × 3€ = ${quote.subtotal_drink_tickets}€`)
+  }
 
   if (quote.extras_horarios.length > 0) {
     lines.push(``)

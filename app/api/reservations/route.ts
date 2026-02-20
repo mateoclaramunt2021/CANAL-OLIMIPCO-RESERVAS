@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { findBestTable } from '@/core/tables'
-import { checkMinAdvance, calculateQuote, findMenu, PAYMENT_DEADLINE_DAYS } from '@/core/menus'
+import { checkMinAdvance, calculateQuote, findMenu, PAYMENT_DEADLINE_DAYS, canCancel } from '@/core/menus'
 import { sendReservationConfirmation, sendPaymentLink } from '@/lib/whatsapp'
 import { getStripe } from '@/lib/stripe'
+import { sanitize, sanitizeObject, isValidPhone, isBot, isTooFast } from '@/lib/security'
+import { notifyNewReservation } from '@/lib/telegram'
 
 // ─── Tipos válidos de evento ─────────────────────────────────────────────────
 const VALID_EVENT_TYPES = [
@@ -23,6 +25,8 @@ const EVENT_TYPES_REQUIRING_PAYMENT = [
 
 const ACTIVE_STATUSES = ['HOLD_BLOCKED', 'CONFIRMED']
 
+const VALID_CAKE_CHOICES = ['oreo', 'kinder', 'nutella', 'sin_gluten'] as const
+
 // ─── POST: Crear reserva ────────────────────────────────────────────────────
 // RESERVA_NORMAL → asigna mesa + WhatsApp confirmación directa
 // GRUPO/EVENTO → calcula total + señal 40% + genera link Stripe + WhatsApp con link
@@ -35,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'El body debe ser JSON válido' }, { status: 400 })
   }
 
-  const { nombre, telefono, fecha, hora, personas, event_type, zona, menu_code, extras_horarios } = body as {
+  const { nombre, telefono, fecha, hora, personas, event_type, zona, menu_code, extras_horarios, cake_choice, drink_tickets, _hp, _ts } = body as {
     nombre?: string
     telefono?: string
     fecha?: string
@@ -45,6 +49,18 @@ export async function POST(req: NextRequest) {
     zona?: 'fuera' | 'dentro'
     menu_code?: string
     extras_horarios?: string[]  // ['01:00-02:00', '02:00-03:00']
+    cake_choice?: string        // 'oreo' | 'kinder' | 'nutella' | 'sin_gluten'
+    drink_tickets?: number      // Tickets de bebida extra (3€ c/u)
+    _hp?: string                // honeypot anti-bot
+    _ts?: number                // timestamp anti-bot
+  }
+
+  // ── Anti-bot checks ──
+  if (isBot(_hp)) {
+    return NextResponse.json({ ok: false, error: 'Solicitud rechazada' }, { status: 403 })
+  }
+  if (_ts !== undefined && isTooFast(_ts)) {
+    return NextResponse.json({ ok: false, error: 'Formulario enviado demasiado rápido' }, { status: 429 })
   }
 
   // Validaciones
@@ -55,6 +71,8 @@ export async function POST(req: NextRequest) {
 
   if (!telefono || typeof telefono !== 'string' || telefono.trim() === '')
     errors.push('telefono es obligatorio')
+  else if (!isValidPhone(telefono))
+    errors.push('formato de teléfono inválido')
 
   if (!fecha || typeof fecha !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fecha))
     errors.push('fecha es obligatoria y debe tener formato YYYY-MM-DD')
@@ -71,6 +89,18 @@ export async function POST(req: NextRequest) {
   // Para eventos con pago, menu_code es obligatorio
   if (event_type && EVENT_TYPES_REQUIRING_PAYMENT.includes(event_type) && !menu_code) {
     errors.push('menu_code es obligatorio para eventos de grupo')
+  }
+
+  // cake_choice obligatorio para cumples infantiles
+  if (event_type === 'INFANTIL_CUMPLE') {
+    if (!cake_choice || !VALID_CAKE_CHOICES.includes(cake_choice as typeof VALID_CAKE_CHOICES[number])) {
+      errors.push(`cake_choice es obligatorio para cumpleaños infantil. Valores: ${VALID_CAKE_CHOICES.join(', ')}`)
+    }
+  }
+
+  // drink_tickets validación
+  if (drink_tickets != null && (typeof drink_tickets !== 'number' || drink_tickets < 0 || !Number.isInteger(drink_tickets))) {
+    errors.push('drink_tickets debe ser un número entero >= 0')
   }
 
   if (errors.length > 0) {
@@ -96,12 +126,20 @@ export async function POST(req: NextRequest) {
 
     // ── Calcular precio si es evento con pago ──
     if (event_type && EVENT_TYPES_REQUIRING_PAYMENT.includes(event_type) && menu_code) {
-      const quote = calculateQuote(menu_code, personas!, extras_horarios)
+      const quote = calculateQuote(menu_code, personas!, extras_horarios, drink_tickets || 0)
       if ('error' in quote) {
         return NextResponse.json({ ok: false, error: quote.error }, { status: 400 })
       }
       total_amount = quote.total
       deposit_amount = quote.deposit
+
+      // Validación mínimo 1000€ para NOCTURNA_EXCLUSIVA
+      if (event_type === 'NOCTURNA_EXCLUSIVA' && total_amount < 1000) {
+        return NextResponse.json({
+          ok: false,
+          error: `Las reservas nocturnas exclusivas requieren un mínimo de 1000€. Total actual: ${total_amount}€. Aumenta el número de personas o añade extras.`,
+        }, { status: 400 })
+      }
     }
 
     // ── Asignar mesa si es RESERVA_NORMAL ──
@@ -140,9 +178,12 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Insertar reserva ──
+    const safeName = sanitize(nombre!.trim())
+    const safePhone = telefono!.trim()
+
     const reservationData: Record<string, any> = {
-      customer_name: nombre!.trim(),
-      customer_phone: telefono!.trim(),
+      customer_name: safeName,
+      customer_phone: safePhone,
       fecha: fecha,
       hora_inicio: hora,
       hora_fin: hora_fin,
@@ -153,6 +194,12 @@ export async function POST(req: NextRequest) {
       total_amount: total_amount,
       deposit_amount: deposit_amount,
       menu_code: selectedMenuCode,
+      menu_payload: {
+        ...(menu_code ? { menu_code } : {}),
+        ...(drink_tickets ? { drink_tickets } : {}),
+        ...(cake_choice ? { cake_choice } : {}),
+        ...(extras_horarios?.length ? { extras_horarios } : {}),
+      },
       payment_deadline: event_type !== 'RESERVA_NORMAL'
         ? new Date(Date.now() + PAYMENT_DEADLINE_DAYS * 24 * 60 * 60 * 1000).toISOString()
         : null,
@@ -176,14 +223,29 @@ export async function POST(req: NextRequest) {
 
     const reservationId = data.id
 
+    // ── Telegram notification (fire & forget) ──
+    notifyNewReservation({
+      reservationId,
+      nombre: safeName,
+      telefono: safePhone,
+      fecha: fecha!,
+      hora: hora!,
+      personas: personas!,
+      eventType: event_type as string,
+      menuName: selectedMenuCode ? findMenu(selectedMenuCode)?.name : undefined,
+      total: total_amount,
+      deposit: deposit_amount,
+      source: 'web',
+    }).catch(err => console.error('[reservations POST] Telegram error:', err))
+
     // ── Post-creación: WhatsApp automático ──
     let stripeUrl: string | null = null
 
     if (event_type === 'RESERVA_NORMAL') {
       // → WhatsApp de confirmación directa
       const mesa = table_id ? findBestTable(personas!, [], zona) : null
-      sendReservationConfirmation(telefono!.trim(), {
-        nombre: nombre!.trim(),
+      sendReservationConfirmation(safePhone, {
+        nombre: safeName,
         fecha: fecha!,
         hora: hora!,
         personas: personas!,
@@ -225,8 +287,8 @@ export async function POST(req: NextRequest) {
           .eq('id', reservationId)
 
         // Enviar WhatsApp con link de pago
-        sendPaymentLink(telefono!.trim(), {
-          nombre: nombre!.trim(),
+        sendPaymentLink(safePhone, {
+          nombre: safeName,
           fecha: fecha!,
           hora: hora!,
           personas: personas!,
@@ -318,10 +380,32 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Reserva no encontrada' }, { status: 404 })
     }
 
+    // ── Validar plazo de modificación (72h antes del evento) ──
+    const isChangingCritical = updates.fecha || updates.hora || updates.personas != null || updates.event_type
+    if (isChangingCritical && current.fecha && current.hora_inicio) {
+      const cancelCheck = canCancel(current.fecha, current.hora_inicio)
+      if (!cancelCheck.ok) {
+        return NextResponse.json({
+          ok: false,
+          error: `No se puede modificar: ${cancelCheck.message}`,
+        }, { status: 400 })
+      }
+    }
+
+    // ── Si se cambia la fecha, verificar antelación mínima ──
+    if (updates.fecha) {
+      const newEventType = updates.event_type || current.event_type
+      const newHora = updates.hora || current.hora_inicio
+      const advance = checkMinAdvance(updates.fecha, newHora, newEventType)
+      if (!advance.ok) {
+        return NextResponse.json({ ok: false, error: advance.message }, { status: 400 })
+      }
+    }
+
     // Construir updates para Supabase
     const dbUpdates: Record<string, unknown> = {}
 
-    if (updates.nombre) dbUpdates.customer_name = updates.nombre.trim()
+    if (updates.nombre) dbUpdates.customer_name = sanitize(updates.nombre.trim())
     if (updates.telefono) dbUpdates.customer_phone = updates.telefono.trim()
     if (updates.fecha) dbUpdates.fecha = updates.fecha
     if (updates.hora) {

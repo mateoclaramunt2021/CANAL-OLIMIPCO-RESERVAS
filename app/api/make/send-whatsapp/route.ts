@@ -84,9 +84,8 @@ export async function POST(req: NextRequest) {
     if (reservation) {
       await supabaseAdmin.from('messages').insert({
         reservation_id: reservation.id,
-        channel: 'whatsapp',
         direction: 'outbound',
-        content: mensaje.trim(),
+        body: mensaje.trim(),
       })
     }
 
