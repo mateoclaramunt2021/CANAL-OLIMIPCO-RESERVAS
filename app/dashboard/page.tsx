@@ -224,15 +224,15 @@ export default function Dashboard() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 w-full max-w-[1400px] mx-auto">
         {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-light tracking-tight" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#1a1a1a' }}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-light tracking-tight" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#1a1a1a' }}>
               Panel de Reservas
             </h1>
-            <div className="flex items-center gap-3 mt-2">
-              <p className="text-sm" style={{ color: '#8a8578' }}>
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
+              <p className="text-xs sm:text-sm" style={{ color: '#8a8578' }}>
                 {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
               <span className="text-xs" style={{ color: '#8a8578' }}>·</span>
@@ -244,17 +244,17 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <button
               onClick={() => { setLoading(true); fetchReservations() }}
-              className="px-4 py-2 text-sm font-medium rounded-lg border transition-all hover:shadow-sm"
+              className="px-3 sm:px-4 py-2 text-sm font-medium rounded-lg border transition-all hover:shadow-sm"
               style={{ borderColor: '#d4c9b0', color: '#5c5549' }}
             >
               ↻ Actualizar
             </button>
             <Link
               href="/reservations/new"
-              className="px-5 py-2.5 text-sm font-medium text-white rounded-lg shadow-sm transition-all hover:shadow-md"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 text-sm font-medium text-white rounded-lg shadow-sm transition-all hover:shadow-md whitespace-nowrap"
               style={{ background: 'linear-gradient(135deg, #B08D57, #96784a)' }}
             >
               + Nueva Reserva
@@ -271,7 +271,7 @@ export default function Dashboard() {
         )}
 
         {/* ── Stats Grid ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[
             { label: 'Hoy', value: todayReservations.length, sub: `${todayPersonas} personas`, accent: '#1a1a1a' },
             { label: 'Mañana', value: tomorrowReservations.length, sub: `${tomorrowPersonas} personas`, accent: '#B08D57' },
@@ -282,14 +282,14 @@ export default function Dashboard() {
           ].map((stat, i) => (
             <div
               key={i}
-              className="rounded-xl p-5 border transition-all hover:shadow-sm"
+              className="rounded-xl p-4 sm:p-5 border transition-all hover:shadow-sm"
               style={{ background: '#faf9f6', borderColor: '#e8e2d6' }}
             >
-              <p className="text-xs font-medium uppercase tracking-wider" style={{ color: '#8a8578' }}>{stat.label}</p>
-              <p className="text-3xl font-light mt-1" style={{ fontFamily: 'Cormorant Garamond, serif', color: stat.accent }}>
+              <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider" style={{ color: '#8a8578' }}>{stat.label}</p>
+              <p className="text-2xl sm:text-3xl font-light mt-1" style={{ fontFamily: 'Cormorant Garamond, serif', color: stat.accent }}>
                 {stat.value}
               </p>
-              <p className="text-xs mt-1" style={{ color: '#b0a898' }}>{stat.sub}</p>
+              <p className="text-[10px] sm:text-xs mt-1" style={{ color: '#b0a898' }}>{stat.sub}</p>
             </div>
           ))}
         </div>
@@ -300,9 +300,9 @@ export default function Dashboard() {
             <p className="text-sm mt-3" style={{ color: '#8a8578' }}>Cargando reservas…</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
             {/* ── Main content (2 cols) ── */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="xl:col-span-2 space-y-4 sm:space-y-6 min-w-0">
 
               {/* Today's reservations */}
               <div className="rounded-xl border overflow-hidden" style={{ background: '#faf9f6', borderColor: '#e8e2d6' }}>
@@ -449,7 +449,7 @@ export default function Dashboard() {
             </div>
 
             {/* ── Sidebar (1 col) ── */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6 min-w-0">
 
               {/* Pending payments alert */}
               {pendingPayments.length > 0 && (
@@ -548,30 +548,30 @@ function ReservationRow({ r, isNew }: { r: Reservation; isNew: boolean }) {
   return (
     <Link
       href={`/reservations/${r.id}`}
-      className={`flex items-center justify-between p-3.5 rounded-lg border transition-all hover:shadow-sm group ${isNew ? 'animate-flash-gold' : ''}`}
+      className={`flex items-center justify-between gap-3 p-3 sm:p-3.5 rounded-lg border transition-all hover:shadow-sm group ${isNew ? 'animate-flash-gold' : ''}`}
       style={{
         borderColor: isNew ? '#B08D57' : '#e8e2d6',
         background: isNew ? '#fdf6e8' : '#ffffff',
       }}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm"
+          className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-sm flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #B08D57, #96784a)' }}
         >
           {r.personas}
         </div>
-        <div>
-          <p className="text-sm font-medium group-hover:underline" style={{ color: '#1a1a1a' }}>
+        <div className="min-w-0">
+          <p className="text-sm font-medium group-hover:underline truncate" style={{ color: '#1a1a1a' }}>
             {r.hora_inicio?.substring(0, 5)} — {r.customer_name || 'Sin nombre'}
           </p>
-          <p className="text-xs" style={{ color: '#8a8578' }}>
+          <p className="text-xs truncate" style={{ color: '#8a8578' }}>
             {eventIcons[r.event_type] || '📋'} {eventLabels[r.event_type] || r.event_type}
             {r.table_id ? ` · Mesa ${r.table_id}` : ''}
           </p>
         </div>
       </div>
-      <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border ${statusColors[r.status] || 'bg-stone-100 text-stone-600 border-stone-200'}`}>
+      <span className={`px-2 sm:px-2.5 py-1 rounded-md text-[10px] font-semibold border whitespace-nowrap flex-shrink-0 ${statusColors[r.status] || 'bg-stone-100 text-stone-600 border-stone-200'}`}>
         {statusLabels[r.status] || r.status}
       </span>
     </Link>
@@ -660,22 +660,22 @@ function CallLogRow({
       {/* ── Main row ── */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-3.5 text-left hover:bg-stone-50/50 transition-colors rounded-lg"
+        className="w-full flex items-center justify-between gap-3 p-3 sm:p-3.5 text-left hover:bg-stone-50/50 transition-colors rounded-lg"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm shadow-sm"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-white text-sm shadow-sm flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}
           >
             📞
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium" style={{ color: '#1a1a1a' }}>
+              <p className="text-sm font-medium truncate" style={{ color: '#1a1a1a' }}>
                 {call.vapi_call_id ? `Llamada ${call.vapi_call_id.substring(0, 8)}…` : 'Llamada'}
               </p>
-              <span className="text-xs" style={{ color: '#b0a898' }}>·</span>
-              <span className="text-xs" style={{ color: '#8a8578' }}>
+              <span className="text-xs flex-shrink-0" style={{ color: '#b0a898' }}>·</span>
+              <span className="text-xs flex-shrink-0" style={{ color: '#8a8578' }}>
                 {formatDuration(call.duration)}
               </span>
             </div>
@@ -687,8 +687,8 @@ function CallLogRow({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border ${statusClass}`}>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`px-2 sm:px-2.5 py-1 rounded-md text-[10px] font-semibold border whitespace-nowrap ${statusClass}`}>
             {statusLabel}
           </span>
           <span className="text-xs" style={{ color: '#b0a898', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>

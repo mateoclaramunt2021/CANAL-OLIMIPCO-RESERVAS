@@ -203,23 +203,23 @@ export default function ReservationDetail() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-6xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.push('/reservations')} className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <button onClick={() => router.push('/reservations')} className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm flex-shrink-0">
               <span className="text-slate-600">←</span>
             </button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">
                 {reservation.customer_name || 'Sin cliente'}
               </h1>
-              <p className="text-slate-500 text-sm mt-0.5">
+              <p className="text-slate-500 text-xs sm:text-sm mt-0.5 truncate">
                 {eventLabels[reservation.event_type] || reservation.event_type} · {fechaFormatted}
               </p>
             </div>
           </div>
-          <span className={`px-4 py-2 rounded-xl text-sm font-semibold border ${statusColors[reservation.status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+          <span className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border flex-shrink-0 ${statusColors[reservation.status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
             {statusLabels[reservation.status] || reservation.status}
           </span>
         </div>
@@ -235,9 +235,9 @@ export default function ReservationDetail() {
           {/* Left column: Info */}
           <div className="lg:col-span-2 space-y-6">
             {/* Reservation Details */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Información de la Reserva</h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <InfoItem label="Cliente" value={reservation.customer_name || 'N/A'} />
                 <InfoItem label="Teléfono" value={reservation.customer_phone || 'N/A'} />
                 <InfoItem label="Tipo de Evento" value={eventLabels[reservation.event_type] || reservation.event_type} />

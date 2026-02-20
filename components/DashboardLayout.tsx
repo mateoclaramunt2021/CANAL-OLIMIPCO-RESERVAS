@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
@@ -38,6 +39,21 @@ const navSections = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
+
+  // Close sidebar on escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSidebarOpen(false)
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -48,17 +64,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pathname === href || pathname?.startsWith(href + '/')
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#f5f3ee' }}>
-      {/* Sidebar */}
+    <div className="min-h-screen" style={{ background: '#f5f3ee' }}>
+      {/* ── Mobile overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
       <aside
-        className="w-64 flex flex-col fixed h-full shadow-xl z-10"
+        className={`
+          fixed top-0 left-0 h-full w-64 flex flex-col shadow-xl z-40
+          transform transition-transform duration-300 ease-in-out
+          lg:translate-x-0
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
         style={{ background: 'linear-gradient(180deg, #1a1814 0%, #2c2820 50%, #1a1814 100%)' }}
       >
         {/* Logo */}
-        <div className="p-6" style={{ borderBottom: '1px solid rgba(176,141,87,0.2)' }}>
+        <div className="p-6 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(176,141,87,0.2)' }}>
           <Link href="/dashboard" className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg"
+              className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #B08D57, #96784a)' }}
             >
               <span className="text-white font-bold text-sm" style={{ fontFamily: 'Cormorant Garamond, serif' }}>CO</span>
@@ -75,6 +104,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </p>
             </div>
           </Link>
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-1 rounded-md"
+            style={{ color: '#8a8578' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 5l10 10M15 5L5 15" />
+            </svg>
+          </button>
         </div>
 
         {/* Navigation */}
@@ -133,8 +172,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 ml-64" style={{ minHeight: '100vh' }}>
+      {/* ── Mobile top bar ── */}
+      <div
+        className="lg:hidden sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b"
+        style={{ background: '#faf9f6', borderColor: '#e8e2d6' }}
+      >
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-lg border"
+          style={{ borderColor: '#d4c9b0' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#5c5549" strokeWidth="2">
+            <path d="M3 5h14M3 10h14M3 15h14" />
+          </svg>
+        </button>
+        <h1
+          className="text-base"
+          style={{ fontFamily: 'Cormorant Garamond, serif', color: '#1a1a1a', fontWeight: 400 }}
+        >
+          Canal Olímpico
+        </h1>
+        <div className="w-9" /> {/* Spacer for centering */}
+      </div>
+
+      {/* ── Main content ── */}
+      <main className="lg:ml-64 min-h-screen w-full lg:w-[calc(100%-16rem)] overflow-x-hidden">
         {children}
       </main>
     </div>

@@ -94,7 +94,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">Configuración</h1>
           <p className="text-slate-500 mt-1">Estado de servicios e información del sistema</p>

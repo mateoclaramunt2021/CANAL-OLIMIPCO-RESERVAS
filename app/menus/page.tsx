@@ -78,7 +78,7 @@ export default function MenusPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">Menús</h1>

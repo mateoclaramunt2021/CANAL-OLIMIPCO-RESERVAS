@@ -71,7 +71,7 @@ export default function PaymentsPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

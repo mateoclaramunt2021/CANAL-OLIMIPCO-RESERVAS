@@ -92,19 +92,19 @@ export default function Reservations() {
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Reservas</h1>
-            <p className="text-slate-500 mt-1">{reservations.length} reservas en total</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Reservas</h1>
+            <p className="text-slate-500 mt-1 text-sm sm:text-base">{reservations.length} reservas en total</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 mb-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex-1 min-w-[200px]">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-3 sm:p-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
               <input
                 type="text"
                 placeholder="Buscar por nombre, teléfono, tipo o ID..."
@@ -113,7 +113,7 @@ export default function Reservations() {
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-slate-50/50"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap overflow-x-auto pb-1 sm:pb-0">
               {filters.map(f => (
                 <button
                   key={f.value}
@@ -146,7 +146,7 @@ export default function Reservations() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50">
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
