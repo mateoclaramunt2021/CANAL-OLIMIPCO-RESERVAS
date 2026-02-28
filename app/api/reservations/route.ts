@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { findBestTable } from '@/core/tables'
 import { checkMinAdvance, calculateQuote, findMenu, PAYMENT_DEADLINE_DAYS, canCancel } from '@/core/menus'
-import { sendReservationConfirmation, sendPaymentLink } from '@/lib/email'
+import { sendReservationConfirmation, sendPaymentLink, notifyRestaurantNewReservation } from '@/lib/email'
 import { getStripe } from '@/lib/stripe'
 import { sanitize, sanitizeObject, isValidPhone, isBot, isTooFast } from '@/lib/security'
 import { notifyNewReservation } from '@/lib/telegram'
@@ -245,6 +245,19 @@ export async function POST(req: NextRequest) {
 
     // ── Post-creación: Email automático ──
     let stripeUrl: string | null = null
+
+    // → Email al restaurante siempre
+    notifyRestaurantNewReservation({
+      nombre: safeName,
+      telefono: safePhone,
+      email: safeEmail,
+      fecha: fecha!,
+      hora: hora!,
+      personas: personas!,
+      eventType: event_type as string,
+      tableId: table_id,
+      reservationId,
+    }).catch(err => console.error('[reservations POST] Restaurant email error:', err))
 
     if (event_type === 'RESERVA_NORMAL') {
       // → Email de confirmación directa

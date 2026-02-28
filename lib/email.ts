@@ -10,6 +10,7 @@ import nodemailer from 'nodemailer'
 
 const GMAIL_USER = process.env.GMAIL_USER || 'reservascanalolimpico@gmail.com'
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || ''
+const RESTAURANT_EMAIL = process.env.RESTAURANT_EMAIL || 'reservascanalolimpico@gmail.com'
 
 function getTransporter() {
   if (!GMAIL_APP_PASSWORD) {
@@ -38,10 +39,11 @@ async function sendEmail(to: string, subject: string, html: string): Promise<{ o
     await transporter.sendMail({
       from: `"Canal Olímpico" <${GMAIL_USER}>`,
       to,
+      bcc: RESTAURANT_EMAIL !== to ? RESTAURANT_EMAIL : undefined,
       subject,
       html,
     })
-    console.log(`[email] Email enviado a ${to}: ${subject}`)
+    console.log(`[email] Email enviado a ${to} (bcc: ${RESTAURANT_EMAIL}): ${subject}`)
     return { ok: true }
   } catch (err) {
     console.error('[email] Error enviando email:', err)
@@ -257,6 +259,60 @@ export async function sendAutoCancel(
   `
 
   await sendEmail(to, '❌ Reserva Cancelada — Canal Olímpico', emailTemplate('Reserva Cancelada', content))
+}
+
+// ─── Enviar recordatorio ────────────────────────────────────────────────────
+
+// ─── Notificar al restaurante de nueva reserva ─────────────────────────────
+
+export async function notifyRestaurantNewReservation(
+  data: {
+    nombre: string
+    telefono?: string | null
+    email?: string | null
+    fecha: string
+    hora: string
+    personas: number
+    eventType: string
+    tableId?: string | null
+    reservationId: string
+  }
+): Promise<void> {
+  const eventLabels: Record<string, string> = {
+    RESERVA_NORMAL: 'Mesa normal',
+    INFANTIL_CUMPLE: 'Infantil / Cumpleaños',
+    GRUPO_SENTADO: 'Grupo sentado',
+    GRUPO_PICA_PICA: 'Grupo pica-pica',
+    NOCTURNA_EXCLUSIVA: 'Nocturna exclusiva',
+  }
+
+  const content = `
+    <h2 style="color:#2563eb;margin:0 0 20px;">📋 Nueva Reserva Recibida</h2>
+    <p style="color:#334155;font-size:16px;margin:0 0 20px;">
+      Se ha registrado una nueva reserva en el sistema.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;padding:20px;margin:0 0 20px;">
+      <tr><td style="padding:8px 16px;">
+        <p style="margin:4px 0;color:#334155;">👤 <strong>Cliente:</strong> ${data.nombre}</p>
+        ${data.telefono ? `<p style="margin:4px 0;color:#334155;">📱 <strong>Teléfono:</strong> ${data.telefono}</p>` : ''}
+        ${data.email ? `<p style="margin:4px 0;color:#334155;">📧 <strong>Email:</strong> ${data.email}</p>` : ''}
+        <p style="margin:4px 0;color:#334155;">📅 <strong>Fecha:</strong> ${formatDateEs(data.fecha)}</p>
+        <p style="margin:4px 0;color:#334155;">🕐 <strong>Hora:</strong> ${data.hora}h</p>
+        <p style="margin:4px 0;color:#334155;">👥 <strong>Personas:</strong> ${data.personas}</p>
+        <p style="margin:4px 0;color:#334155;">🍽️ <strong>Tipo:</strong> ${eventLabels[data.eventType] || data.eventType}</p>
+        ${data.tableId ? `<p style="margin:4px 0;color:#334155;">🪑 <strong>Mesa:</strong> ${data.tableId}</p>` : ''}
+        <p style="margin:4px 0;color:#334155;">📋 <strong>Ref:</strong> ${data.reservationId.substring(0, 8)}</p>
+      </td></tr>
+    </table>
+    <p style="color:#64748b;font-size:13px;">Email automático del sistema de reservas.</p>
+  `
+
+  const fechaCorta = formatDateEs(data.fecha).split(' de ').slice(0, 2).join(' ')
+  await sendEmail(
+    RESTAURANT_EMAIL,
+    `📋 Nueva Reserva — ${data.nombre} · ${fechaCorta} · ${data.hora} · ${data.personas} pax`,
+    emailTemplate('Nueva Reserva', content)
+  )
 }
 
 // ─── Enviar recordatorio ────────────────────────────────────────────────────
