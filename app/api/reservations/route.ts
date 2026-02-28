@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { findBestTable } from '@/core/tables'
 import { checkMinAdvance, calculateQuote, findMenu, PAYMENT_DEADLINE_DAYS, canCancel } from '@/core/menus'
-import { sendReservationConfirmation, sendPaymentLink } from '@/lib/whatsapp'
+import { sendReservationConfirmation, sendPaymentLink } from '@/lib/email'
 import { getStripe } from '@/lib/stripe'
 import { sanitize, sanitizeObject, isValidPhone, isBot, isTooFast } from '@/lib/security'
 import { notifyNewReservation } from '@/lib/telegram'
@@ -39,9 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'El body debe ser JSON válido' }, { status: 400 })
   }
 
-  const { nombre, telefono, fecha, hora, personas, event_type, zona, menu_code, extras_horarios, cake_choice, drink_tickets, _hp, _ts } = body as {
+  const { nombre, telefono, email, fecha, hora, personas, event_type, zona, menu_code, extras_horarios, cake_choice, drink_tickets, _hp, _ts } = body as {
     nombre?: string
     telefono?: string
+    email?: string
     fecha?: string
     hora?: string
     personas?: number
@@ -180,10 +181,12 @@ export async function POST(req: NextRequest) {
     // ── Insertar reserva ──
     const safeName = sanitize(nombre!.trim())
     const safePhone = telefono!.trim()
+    const safeEmail = email ? email.trim().toLowerCase() : null
 
     const reservationData: Record<string, any> = {
       customer_name: safeName,
       customer_phone: safePhone,
+      customer_email: safeEmail,
       fecha: fecha,
       hora_inicio: hora,
       hora_fin: hora_fin,
@@ -238,21 +241,22 @@ export async function POST(req: NextRequest) {
       source: 'web',
     }).catch(err => console.error('[reservations POST] Telegram error:', err))
 
-    // ── Post-creación: WhatsApp automático ──
+    // ── Post-creación: Email automático ──
     let stripeUrl: string | null = null
 
     if (event_type === 'RESERVA_NORMAL') {
-      // → WhatsApp de confirmación directa
-      const mesa = table_id ? findBestTable(personas!, [], zona) : null
-      sendReservationConfirmation(safePhone, {
-        nombre: safeName,
-        fecha: fecha!,
-        hora: hora!,
-        personas: personas!,
-        tableId: table_id,
-        zone: zona || null,
-        reservationId,
-      }).catch(err => console.error('[reservations POST] WhatsApp error:', err))
+      // → Email de confirmación directa
+      if (safeEmail) {
+        sendReservationConfirmation(safeEmail, {
+          nombre: safeName,
+          fecha: fecha!,
+          hora: hora!,
+          personas: personas!,
+          tableId: table_id,
+          zone: zona || null,
+          reservationId,
+        }).catch(err => console.error('[reservations POST] Email error:', err))
+      }
 
     } else if (deposit_amount && deposit_amount > 0) {
       // → Generar link de Stripe + WhatsApp con link de pago
@@ -286,19 +290,21 @@ export async function POST(req: NextRequest) {
           .update({ stripe_checkout_url: session.url, stripe_session_id: session.id })
           .eq('id', reservationId)
 
-        // Enviar WhatsApp con link de pago
-        sendPaymentLink(safePhone, {
-          nombre: safeName,
-          fecha: fecha!,
-          hora: hora!,
-          personas: personas!,
-          menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
-          total: total_amount!,
-          deposit: deposit_amount,
-          paymentUrl: session.url!,
-          deadlineDays: PAYMENT_DEADLINE_DAYS,
-          reservationId,
-        }).catch(err => console.error('[reservations POST] WhatsApp payment error:', err))
+        // Enviar Email con link de pago
+        if (safeEmail) {
+          sendPaymentLink(safeEmail, {
+            nombre: safeName,
+            fecha: fecha!,
+            hora: hora!,
+            personas: personas!,
+            menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
+            total: total_amount!,
+            deposit: deposit_amount,
+            paymentUrl: session.url!,
+            deadlineDays: PAYMENT_DEADLINE_DAYS,
+            reservationId,
+          }).catch(err => console.error('[reservations POST] Email payment error:', err))
+        }
 
       } catch (stripeErr) {
         console.error('[reservations POST] Stripe error:', stripeErr)
@@ -310,8 +316,8 @@ export async function POST(req: NextRequest) {
       ok: true,
       reservation_id: reservationId,
       message: event_type === 'RESERVA_NORMAL'
-        ? 'Reserva confirmada. Se ha enviado WhatsApp de confirmación.'
-        : `Reserva creada. Se ha enviado WhatsApp con link de pago (señal ${deposit_amount}€).`,
+        ? 'Reserva confirmada. Se ha enviado email de confirmación.'
+        : `Reserva creada. Se ha enviado email con link de pago (señal ${deposit_amount}€).`,
       table_id: table_id,
       total_amount,
       deposit_amount,

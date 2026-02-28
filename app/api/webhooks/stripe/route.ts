@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
-import { sendPaymentConfirmation } from '@/lib/whatsapp'
+import { sendPaymentConfirmation } from '@/lib/email'
 import { notifyPaymentReceived } from '@/lib/telegram'
 
 // ─── POST: Webhook de Stripe ────────────────────────────────────────────────
@@ -61,15 +61,15 @@ export async function POST(req: NextRequest) {
             status: 'completed',
           })
 
-        // 3. Leer datos de la reserva para enviar WhatsApp
+        // 3. Leer datos de la reserva para enviar email
         const { data: reservation } = await supabaseAdmin
           .from('reservations')
           .select('*')
           .eq('id', reservationId)
           .single()
 
-        if (reservation && reservation.customer_phone) {
-          await sendPaymentConfirmation(reservation.customer_phone, {
+        if (reservation && reservation.customer_email) {
+          await sendPaymentConfirmation(reservation.customer_email, {
             nombre: reservation.customer_name || 'Cliente',
             fecha: reservation.fecha,
             hora: reservation.hora_inicio,

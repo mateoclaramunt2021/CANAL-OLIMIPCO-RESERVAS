@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { sendAutoCancel, sendText } from '@/lib/whatsapp'
+import { sendAutoCancel, sendReminder } from '@/lib/email'
 import { PAYMENT_DEADLINE_DAYS } from '@/core/menus'
 import { notifyAutoCancel, notifyReminderSent } from '@/lib/telegram'
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     const { data: unpaid } = await supabaseAdmin
       .from('reservations')
-      .select('id, customer_name, customer_phone, fecha')
+      .select('id, customer_name, customer_phone, customer_email, fecha')
       .eq('status', 'HOLD_BLOCKED')
       .lt('created_at', deadlineDate.toISOString())
 
@@ -37,9 +37,9 @@ export async function POST(req: NextRequest) {
           .update({ status: 'CANCELED', canceled_reason: 'payment_expired' })
           .eq('id', res.id)
 
-        // Enviar WhatsApp de cancelación
-        if (res.customer_phone) {
-          await sendAutoCancel(res.customer_phone, {
+        // Enviar email de cancelación
+        if (res.customer_email) {
+          await sendAutoCancel(res.customer_email, {
             nombre: res.customer_name || 'Cliente',
             fecha: res.fecha,
             reservationId: res.id,
@@ -66,27 +66,20 @@ export async function POST(req: NextRequest) {
 
     const { data: upcoming } = await supabaseAdmin
       .from('reservations')
-      .select('id, customer_name, customer_phone, fecha, hora_inicio, personas, event_type')
+      .select('id, customer_name, customer_phone, customer_email, fecha, hora_inicio, personas, event_type')
       .eq('status', 'CONFIRMED')
       .eq('fecha', fiveDaysStr)
 
     for (const res of (upcoming ?? [])) {
       try {
-        if (res.customer_phone) {
-          const isEvent = res.event_type !== 'RESERVA_NORMAL'
-          const message = isEvent
-            ? `📌 *Recordatorio — ${res.customer_name}*\n\n` +
-              `Tu evento del ${res.fecha} se acerca.\n\n` +
-              `Por favor confirma:\n` +
-              `• Número definitivo de asistentes\n` +
-              `• Platos escogidos del menú\n` +
-              `• Alergias o menús especiales\n\n` +
-              `📞 938.587.088 / 629.358.562`
-            : `📌 *Recordatorio — ${res.customer_name}*\n\n` +
-              `Tu reserva para el ${res.fecha} a las ${res.hora_inicio}h (${res.personas} personas) sigue confirmada.\n\n` +
-              `¡Te esperamos! 📍 Canal Olímpico, Castelldefels`
-
-          await sendText(res.customer_phone, message)
+        if (res.customer_email) {
+          await sendReminder(res.customer_email, {
+            nombre: res.customer_name || 'Cliente',
+            fecha: res.fecha,
+            hora: res.hora_inicio || '',
+            personas: res.personas || 0,
+            eventType: res.event_type || 'RESERVA_NORMAL',
+          })
 
           // Telegram alert
           notifyReminderSent({

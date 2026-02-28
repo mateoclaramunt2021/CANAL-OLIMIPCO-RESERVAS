@@ -99,7 +99,7 @@ async function handleCreateReservation(
   params: Record<string, any>,
   vapiPayload: any
 ) {
-  const { nombre, telefono, fecha, hora, personas, event_type, zona, menu_code } = params
+  const { nombre, telefono, email, fecha, hora, personas, event_type, zona, menu_code } = params
 
   // Sanitize VAPI inputs
   const safeName = nombre ? sanitize(String(nombre)) : 'Cliente VAPI'
@@ -115,6 +115,7 @@ async function handleCreateReservation(
       body: JSON.stringify({
         nombre: safeName,
         telefono: phone,
+        email: email || undefined,
         fecha,   // YYYY-MM-DD
         hora,    // HH:mm
         personas: Number(personas) || 2,
@@ -135,11 +136,11 @@ async function handleCreateReservation(
     const isEvento = params.event_type && params.event_type !== 'RESERVA_NORMAL'
     const refText = data.reservation_id ? `La referencia es ${data.reservation_id}.` : ''
     const pagoText = data.stripe_url
-      ? 'Se le enviará un WhatsApp con el enlace para pagar la señal.'
-      : 'Se le enviará un WhatsApp de confirmación.'
+      ? 'Se le enviará un email con el enlace para pagar la señal.'
+      : 'Se le enviará un email de confirmación.'
 
     return NextResponse.json({
-      result: `Reserva creada correctamente. ${refText} ${isEvento ? pagoText : 'Se le enviará confirmación por WhatsApp.'} Despídete de forma cálida.`,
+      result: `Reserva creada correctamente. ${refText} ${isEvento ? pagoText : 'Se le enviará confirmación por email.'} Despídete de forma cálida.`,
     })
   } catch (err) {
     console.error('[VAPI] Error creando reserva:', err)
