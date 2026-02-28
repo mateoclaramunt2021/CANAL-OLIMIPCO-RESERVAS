@@ -9,6 +9,7 @@ interface Reservation {
   event_type: string
   customer_name: string
   customer_phone: string
+  customer_email: string
   fecha: string
   hora_inicio: string
   hora_fin: string
@@ -240,6 +241,7 @@ export default function ReservationDetail() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <InfoItem label="Cliente" value={reservation.customer_name || 'N/A'} />
                 <InfoItem label="Teléfono" value={reservation.customer_phone || 'N/A'} />
+                <InfoItem label="Email" value={reservation.customer_email || 'N/A'} />
                 <InfoItem label="Tipo de Evento" value={eventLabels[reservation.event_type] || reservation.event_type} />
                 <InfoItem label="Fecha" value={fechaFormatted} />
                 <InfoItem label="Horario" value={`${reservation.hora_inicio || '—'} – ${reservation.hora_fin || '—'}`} />

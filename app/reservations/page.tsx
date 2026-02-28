@@ -9,6 +9,7 @@ interface Reservation {
   id: string
   customer_name: string
   customer_phone: string
+  customer_email: string
   event_type: string
   fecha: string
   hora_inicio: string
@@ -116,6 +117,7 @@ export default function Reservations() {
     const matchSearch = !search ||
       r.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
       r.customer_phone?.includes(search) ||
+      r.customer_email?.toLowerCase().includes(search.toLowerCase()) ||
       r.event_type?.toLowerCase().includes(search.toLowerCase()) ||
       r.id?.toLowerCase().includes(search.toLowerCase())
     return matchStatus && matchSearch
@@ -209,6 +211,7 @@ export default function Reservations() {
                         <div>
                           <p className="font-medium text-slate-900">{res.customer_name || 'Sin nombre'}</p>
                           <p className="text-sm text-slate-500">{res.customer_phone || 'Sin teléfono'}</p>
+                          {res.customer_email && <p className="text-xs text-slate-400">{res.customer_email}</p>}
                         </div>
                       </td>
                       <td className="px-6 py-4">
