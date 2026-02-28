@@ -717,7 +717,7 @@ export default function Home() {
               <defs><linearGradient id="goldGrad" x1="0" y1="0" x2="200" y2="0"><stop offset="0%" stopColor="transparent" /><stop offset="20%" stopColor="#B08D57" /><stop offset="50%" stopColor="#d4b87a" /><stop offset="80%" stopColor="#B08D57" /><stop offset="100%" stopColor="transparent" /></linearGradient></defs>
             </svg>
           </div>
-          <p className="hero__subtitle hero__anim" style={{ animationDelay: '1.3s' }}>Gastronomía mediterránea junto al agua</p>
+          <p className="hero__subtitle hero__anim" style={{ animationDelay: '1.3s' }}>Gastronomía mediterránea junto al canal</p>
           <p className="hero__loc hero__anim" style={{ animationDelay: '1.5s' }}>
             <span className="hero__loc-icon">◆</span> Castelldefels, Barcelona
           </p>
