@@ -14,7 +14,7 @@ import { notifyVapiCallEnded } from '@/lib/telegram'
 //   4. cancelReservation  → Cancela una reserva por referencia
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://reservascanalolimpico.netlify.app'
 
 export async function POST(req: NextRequest) {
   try {
@@ -128,16 +128,18 @@ async function handleCreateReservation(
 
     if (!data.ok) {
       return NextResponse.json({
-        result: `No se pudo crear la reserva: ${data.error}`,
+        result: `No se ha podido crear la reserva: ${data.error}. Díselo al cliente y pregunta si quiere cambiar algo.`,
       })
     }
 
+    const isEvento = params.event_type && params.event_type !== 'RESERVA_NORMAL'
+    const refText = data.reservation_id ? `La referencia es ${data.reservation_id}.` : ''
+    const pagoText = data.stripe_url
+      ? 'Se le enviará un WhatsApp con el enlace para pagar la señal.'
+      : 'Se le enviará un WhatsApp de confirmación.'
+
     return NextResponse.json({
-      result: `Reserva creada correctamente. Referencia: ${data.reservation_id}. ${
-        data.table_id ? `Mesa asignada: ${data.table_id}.` : ''
-      } ${
-        data.stripe_url ? `Se ha enviado un enlace de pago por WhatsApp.` : 'Confirmación enviada por WhatsApp.'
-      }`,
+      result: `Reserva creada correctamente. ${refText} ${isEvento ? pagoText : 'Se le enviará confirmación por WhatsApp.'} Despídete de forma cálida.`,
     })
   } catch (err) {
     console.error('[VAPI] Error creando reserva:', err)
@@ -149,31 +151,50 @@ async function handleCreateReservation(
 
 // ─── Handler: Consultar Disponibilidad ───────────────────────────────────────
 async function handleCheckAvailability(params: Record<string, any>) {
-  const { fecha, hora, personas, zona } = params
+  const { fecha, hora, personas, zona, event_type } = params
 
   try {
-    const queryParams = new URLSearchParams()
-    if (fecha) queryParams.set('date', fecha)
-    if (hora) queryParams.set('time', hora)
-    if (personas) queryParams.set('guests', String(personas))
-    if (zona) queryParams.set('zona', zona)
+    // La API de disponibilidad usa POST con body JSON
+    const res = await fetch(`${SITE_URL}/api/availability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fecha,
+        hora: hora || '14:00',
+        personas: Number(personas) || 2,
+        event_type: event_type || 'RESERVA_NORMAL',
+        zona: zona || undefined,
+      }),
+    })
 
-    const res = await fetch(`${SITE_URL}/api/availability?${queryParams.toString()}`)
     const data = await res.json()
 
-    if (data.available) {
+    if (!res.ok) {
+      console.error('[VAPI] Availability API error:', data)
       return NextResponse.json({
-        result: `Sí, hay disponibilidad para ${personas} personas el ${fecha} a las ${hora}h${zona ? ` en zona ${zona}` : ''}. ¿Quieres que haga la reserva?`,
+        result: `No he podido comprobar la disponibilidad. ${data.error || 'Error interno'}. Pregunta al cliente si quiere intentarlo con otra fecha u hora.`,
+      })
+    }
+
+    if (data.available) {
+      const zonaText = zona ? ` en zona ${zona}` : ''
+      return NextResponse.json({
+        result: `Hay disponibilidad para ${personas} personas el ${fecha} a las ${hora}${zonaText}. Confirma con el cliente si quiere reservar.`,
       })
     } else {
+      // Construir alternativas si las hay
+      let altText = ''
+      if (data.alternatives && data.alternatives.length > 0) {
+        altText = ` Hay disponibilidad a las: ${data.alternatives.join(', ')}.`
+      }
       return NextResponse.json({
-        result: data.message || `Lo siento, no hay disponibilidad para ${personas} personas en esa fecha y hora. ¿Quieres probar otra fecha u hora?`,
+        result: `${data.message || 'No hay disponibilidad a esa hora.'} ${altText} Ofrece las alternativas al cliente o pregunta si quiere otra fecha.`,
       })
     }
   } catch (err) {
     console.error('[VAPI] Error consultando disponibilidad:', err)
     return NextResponse.json({
-      result: 'No pude verificar la disponibilidad en este momento. ¿Quieres intentarlo con otra fecha?',
+      result: 'Ha habido un error técnico comprobando la disponibilidad. Dile al cliente que lo sientes y pregunta si quiere probar con otra fecha.',
     })
   }
 }
@@ -184,16 +205,23 @@ async function handleGetMenuInfo() {
     const res = await fetch(`${SITE_URL}/api/menu_catalog`)
     const data = await res.json()
 
-    const menuText = (data.menus || [])
-      .map((m: any) => `• ${m.name}: ${m.price_per_person}€ por persona`)
-      .join('\n')
+    const menus = data.menus || []
+    if (menus.length === 0) {
+      return NextResponse.json({
+        result: 'Menús disponibles: Menú infantil a catorce con cincuenta por persona. Menú grupo a veintinueve o treinta y cuatro euros por persona. Menú pica-pica a treinta o treinta y cuatro euros por persona. Los eventos requieren una señal del cuarenta por ciento. Ofrece solo los menús relevantes al tipo de evento del cliente.',
+      })
+    }
+
+    const menuText = menus
+      .map((m: any) => `${m.name}: ${m.price_per_person} euros por persona`)
+      .join('. ')
 
     return NextResponse.json({
-      result: `Estos son nuestros menús disponibles:\n${menuText}\n\nTodos los eventos requieren una señal del 40%. ¿Cuál te interesa?`,
+      result: `Menús disponibles: ${menuText}. Los eventos requieren señal del cuarenta por ciento. Ofrece solo los relevantes al tipo de evento del cliente.`,
     })
   } catch {
     return NextResponse.json({
-      result: 'Tenemos menús desde 14,50€ (infantil) hasta 34€ por persona. ¿Te cuento más?',
+      result: 'Menús disponibles: Menú infantil a catorce con cincuenta por persona. Menú grupo a veintinueve o treinta y cuatro euros por persona. Menú pica-pica a treinta o treinta y cuatro euros por persona. Los eventos requieren una señal del cuarenta por ciento.',
     })
   }
 }
@@ -204,7 +232,7 @@ async function handleCancelReservation(params: Record<string, any>) {
 
   if (!reservation_id) {
     return NextResponse.json({
-      result: 'Necesito la referencia de la reserva para poder cancelarla. ¿La tienes?',
+      result: 'Necesito la referencia de la reserva para cancelarla. Pide al cliente que te dé el número de referencia que recibió por WhatsApp.',
     })
   }
 
@@ -218,24 +246,28 @@ async function handleCancelReservation(params: Record<string, any>) {
 
     if (error || !reservation) {
       return NextResponse.json({
-        result: `No encontré ninguna reserva con referencia ${reservation_id}. ¿Puedes verificar el número?`,
+        result: `No se ha encontrado ninguna reserva con esa referencia. Pide al cliente que compruebe el número de referencia.`,
       })
     }
 
     if (reservation.status === 'CANCELED') {
       return NextResponse.json({
-        result: 'Esa reserva ya estaba cancelada.',
+        result: 'Esa reserva ya estaba cancelada previamente. Informa al cliente.',
       })
     }
 
     // Cancelar
     await supabaseAdmin
       .from('reservations')
-      .update({ status: 'CANCELED', canceled_reason: 'Cancelada por llamada VAPI' })
+      .update({ status: 'CANCELED', canceled_reason: 'Cancelada por llamada telefónica' })
       .eq('id', reservation_id)
 
+    // Comprobar si era evento para avisar de la señal
+    const isEvento = reservation.event_type && reservation.event_type !== 'RESERVA_NORMAL'
+    const avisoSenal = isEvento ? ' Si la cancelación es con menos de setenta y dos horas de antelación, se pierde la señal.' : ''
+
     return NextResponse.json({
-      result: `Reserva ${reservation_id} cancelada correctamente. Se lo confirmaremos por WhatsApp.`,
+      result: `Reserva cancelada correctamente. Se enviará confirmación por WhatsApp.${avisoSenal} Despídete amablemente.`,
     })
   } catch (err) {
     console.error('[VAPI] Error cancelando reserva:', err)
