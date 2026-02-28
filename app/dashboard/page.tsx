@@ -178,8 +178,8 @@ export default function Dashboard() {
       console.error('[Realtime] Setup error:', err)
     }
 
-    // Auto-refresh every 30s as fallback
-    const interval = setInterval(fetchReservations, 30000)
+    // Auto-refresh every 15s as fallback
+    const interval = setInterval(fetchReservations, 15000)
 
     return () => {
       clearInterval(interval)

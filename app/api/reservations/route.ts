@@ -70,10 +70,12 @@ export async function POST(req: NextRequest) {
   if (!nombre || typeof nombre !== 'string' || nombre.trim() === '')
     errors.push('nombre es obligatorio')
 
-  if (!telefono || typeof telefono !== 'string' || telefono.trim() === '')
-    errors.push('telefono es obligatorio')
-  else if (!isValidPhone(telefono))
+  if (!telefono || typeof telefono !== 'string' || telefono.trim() === '') {
+    // Permitir crear sin teléfono si hay email (caso VAPI)
+    if (!email) errors.push('telefono o email es obligatorio')
+  } else if (!isValidPhone(telefono)) {
     errors.push('formato de teléfono inválido')
+  }
 
   if (!fecha || typeof fecha !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fecha))
     errors.push('fecha es obligatoria y debe tener formato YYYY-MM-DD')

@@ -105,7 +105,10 @@ async function handleCreateReservation(
   const safeName = nombre ? sanitize(String(nombre)) : 'Cliente VAPI'
 
   // Si VAPI no extrajo el teléfono, intentar sacarlo del call metadata
-  const phone = telefono || vapiPayload.message?.call?.customer?.number || null
+  const callerNumber = vapiPayload.message?.call?.customer?.number || null
+  const phone = telefono || callerNumber || '000000000' // fallback para no fallar validación
+
+  console.log('[VAPI] createReservation params:', { nombre: safeName, phone, email, fecha, hora, personas, event_type, callerNumber })
 
   // Llamar a nuestra propia API de reservas
   try {
@@ -126,6 +129,7 @@ async function handleCreateReservation(
     })
 
     const data = await res.json()
+    console.log('[VAPI] createReservation response:', { status: res.status, ok: data.ok, error: data.error, reservation_id: data.reservation_id })
 
     if (!data.ok) {
       return NextResponse.json({
