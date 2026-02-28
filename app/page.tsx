@@ -1,11 +1,11 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CANAL OLÍMPICO — Premium Landing + Reservation System
+   CANAL OLÍMPICO — Enterprise Landing 2026
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── SVG Icon Components ─────────────────────────────────────────────────── */
@@ -29,33 +29,37 @@ const Icon = {
   ChevronDown: () => <svg width="28" height="28" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>,
   ArrowLeft: () => <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>,
   ArrowRight: () => <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>,
+  Mail: () => <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>,
+  Shield: () => <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  Sparkles: () => <svg viewBox="0 0 24 24"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M19 13l.75 2.25L22 16l-2.25.75L19 19l-.75-2.25L16 16l2.25-.75L19 13z"/></svg>,
+  Instagram: () => <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>,
 }
 
 /* ─── Menu data ───────────────────────────────────────────────────────────── */
 const MENUS_DISPLAY = [
-  { name: 'Menú Grupo Premium', price: '34€', priceSub: 'por persona', badge: 'PREMIUM', courses: [
+  { name: 'Menú Grupo Premium', price: '34€', priceSub: 'por persona', badge: 'PREMIUM', cat: 'grupo', courses: [
     { label: 'PARA COMPARTIR', text: 'Surtido de embutidos ibéricos · Pan de coca con tomate, aceite de oliva y romero · Patatas bravas' },
     { label: 'PARA ESCOGER', text: 'Solomillo de cerdo a la pimienta / Bacalao con cremoso de setas / Parrillada de verduras' },
     { label: 'POSTRE', text: 'Tarta o Helado' },
   ], drinks: '1 bebida + agua + café o infusión', accent: 'terracota' as const },
-  { name: 'Menú Grupo', price: '29€', priceSub: 'por persona', badge: null, courses: [
+  { name: 'Menú Grupo', price: '29€', priceSub: 'por persona', badge: null, cat: 'grupo', courses: [
     { label: 'PRIMERO', text: 'Rigatoni con crema suave de tomate / Ensalada de queso de cabra con frutos rojos' },
     { label: 'PARA ESCOGER', text: 'Solomillo a la pimienta verde / Lubina al horno con patata panadera / Parrillada de verduras' },
     { label: 'POSTRE', text: 'Sorbete de limón al cava / Macedonia de frutas' },
   ], drinks: '1 bebida + agua', accent: 'gold' as const },
-  { name: 'Pica-Pica Premium', price: '34€', priceSub: 'por persona', badge: 'PREMIUM', courses: [
+  { name: 'Pica-Pica Premium', price: '34€', priceSub: 'por persona', badge: 'PREMIUM', cat: 'picapica', courses: [
     { label: 'SELECCIÓN', text: 'Surtido embutidos ibéricos · Pan de coca con tomate y aceite de oliva · Bravas · Brocheta sepia y gambas' },
     { label: 'CLÁSICOS', text: 'Alcachofas con jamón de pato · Miniensaladas de queso de cabra con frutos rojos · Saquitos de carrillera · Croquetas · Minihamburguesas en pan de brioxe' },
   ], drinks: '2 bebidas (refresco / vino / cerveza)', accent: 'terracota' as const },
-  { name: 'Pica-Pica', price: '30€', priceSub: 'por persona', badge: null, courses: [
+  { name: 'Pica-Pica', price: '30€', priceSub: 'por persona', badge: null, cat: 'picapica', courses: [
     { label: 'SELECCIÓN', text: 'Tacos de tortilla de patatas · Mix de croquetas · Minihamburguesas en pan de brioxe · Calamarcitos a la andaluza' },
     { label: 'CLÁSICOS', text: 'Fingers de pollo · Nachos con guacamole, chile y pico de gallo' },
   ], drinks: '2 bebidas (refresco / vino / cerveza)', accent: 'gold' as const },
-  { name: 'Menú Infantil', price: '14,50€', priceSub: 'por niño', badge: null, courses: [
+  { name: 'Menú Infantil', price: '14,50€', priceSub: 'por niño', badge: null, cat: 'infantil', courses: [
     { label: 'PRINCIPAL', text: 'Macarrones tomate / Hamburguesa con patatas / Fingers de pollo / Canelones' },
     { label: 'POSTRE', text: 'Tarta / Helado / Yogur' },
   ], drinks: '1 refresco / zumo / agua', accent: 'terracota' as const },
-  { name: 'Menú Padres/Adultos', price: '38€', priceSub: 'por persona', badge: null, courses: [
+  { name: 'Menú Padres/Adultos', price: '38€', priceSub: 'por persona', badge: null, cat: 'infantil', courses: [
     { label: 'MENÚ COMPLETO', text: 'Para adultos acompañantes en eventos infantiles' },
   ], drinks: '1 bebida + agua + café', accent: 'gold' as const },
 ]
@@ -79,10 +83,10 @@ const EVENT_TYPES_MAP: Record<string, string> = {
 }
 
 const EVENT_DISPLAY = [
-  { key: 'GRUPO_SENTADO', title: 'Grupo Sentado', desc: 'Comidas y cenas de grupo con menú servido a mesa.', icon: 'utensils' },
-  { key: 'GRUPO_PICA_PICA', title: 'Pica-Pica', desc: 'Formato cocktail con selección de platos para compartir.', icon: 'star' },
-  { key: 'INFANTIL_CUMPLE', title: 'Infantil / Cumpleaños', desc: 'Celebraciones para los más pequeños con menú adaptado.', icon: 'gift' },
-  { key: 'NOCTURNA_EXCLUSIVA', title: 'Nocturna Exclusiva', desc: 'Eventos nocturnos con terraza privada.', icon: 'moon' },
+  { key: 'GRUPO_SENTADO', title: 'Grupo Sentado', desc: 'Comidas y cenas de grupo con menú servido a mesa. Desde 7 personas.', icon: 'utensils', price: 'Desde 29€/pers.' },
+  { key: 'GRUPO_PICA_PICA', title: 'Pica-Pica', desc: 'Formato cocktail con selección de platos para compartir de pie.', icon: 'star', price: 'Desde 30€/pers.' },
+  { key: 'INFANTIL_CUMPLE', title: 'Cumpleaños Infantil', desc: 'Celebraciones para los más pequeños con zona reservada y tarta.', icon: 'gift', price: 'Desde 14,50€/niño' },
+  { key: 'NOCTURNA_EXCLUSIVA', title: 'Nocturna Exclusiva', desc: 'Eventos nocturnos con terraza privada y experiencia premium.', icon: 'moon', price: 'Presupuesto a medida' },
 ]
 
 const CONDITIONS_DATA = [
@@ -103,6 +107,20 @@ const EVENT_ICONS: Record<string, () => React.JSX.Element> = {
   utensils: Icon.Utensils, star: Icon.Star, gift: Icon.Gift, moon: Icon.Moon,
 }
 
+/* ─── FAQ data ────────────────────────────────────────────────────────────── */
+const FAQ_DATA = [
+  { q: '¿Cuál es el horario del restaurante?', a: 'De lunes a viernes de 8:00 a 18:00h. Sábados y domingos de 9:00 a 18:00h. Para eventos nocturnos privados, consultar disponibilidad.' },
+  { q: '¿Hay parking disponible?', a: 'Sí, disponemos de un amplio aparcamiento gratuito junto al restaurante, ideal para grupos grandes.' },
+  { q: '¿Puedo reservar para más de 6 personas?', a: 'Por supuesto. Para grupos de 7 o más personas selecciona la opción "Grupo / Evento" en el formulario de reserva. Tenemos menús cerrados desde 29€/persona con todo incluido.' },
+  { q: '¿Cómo funciona la señal para grupos?', a: 'Al reservar un evento o grupo se requiere una señal del 40% del total, que puedes pagar online de forma segura. Tienes 4 días para completar el pago desde la confirmación.' },
+  { q: '¿Puedo cancelar o modificar mi reserva?', a: 'Puedes modificar tu reserva hasta 72 horas antes del evento. Si cancelas fuera de plazo, la señal no se devuelve. Para mesas individuales, puedes cancelar con 24h de antelación.' },
+  { q: '¿Tienen opciones para alérgenos o intolerancias?', a: 'Sí. Solo necesitas indicarlo con un mínimo de 72 horas de antelación para que nuestro equipo de cocina prepare las adaptaciones necesarias.' },
+  { q: '¿Pueden venir niños?', a: 'Sí, tenemos menú infantil (14,50€) con opciones adaptadas. También organizamos cumpleaños y fiestas infantiles con zona reservada.' },
+  { q: '¿Se admiten mascotas en la terraza?', a: 'Sí, las mascotas son bienvenidas en la terraza exterior. Solo pedimos que estén atadas y no molesten al resto de clientes.' },
+  { q: '¿Hay algún mínimo de personas para reservar?', a: 'Para mesas individuales puedes reservar desde 1 persona. Para grupos y eventos, el mínimo es de 7 personas.' },
+  { q: '¿Se puede personalizar el menú de grupo?', a: 'Los menús de grupo son cerrados para garantizar la calidad del servicio. Si necesitas adaptaciones por alergias o intolerancias, no dudes en contactarnos con antelación.' },
+]
+
 /* ─── Time options ────────────────────────────────────────────────────────── */
 function generateTimeSlots(start: number, end: number, step: number): string[] {
   const slots: string[] = []
@@ -115,7 +133,7 @@ function generateTimeSlots(start: number, end: number, step: number): string[] {
 const TIME_SLOTS_NORMAL = generateTimeSlots(8 * 60, 17 * 60 + 30, 30)
 const TIME_SLOTS_EVENT = generateTimeSlots(12 * 60, 22 * 60, 30)
 
-/* ─── Reveal hook ─────────────────────────────────────────────────────────── */
+/* ─── Hooks & Utils ───────────────────────────────────────────────────────── */
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -131,67 +149,93 @@ function useReveal() {
   return ref
 }
 
-function Reveal({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+function Reveal({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useReveal()
-  return <div ref={ref} className={`reveal ${className}`}>{children}</div>
+  return <div ref={ref} className={`reveal ${className}`} style={delay ? { transitionDelay: `${delay}ms` } : undefined}>{children}</div>
 }
 
-/* ─── FAQ data ────────────────────────────────────────────────────────────── */
-const FAQ_DATA = [
-  { q: '¿Cuál es el horario del restaurante?', a: 'De lunes a viernes de 8:00 a 18:00h. Sábados y domingos de 9:00 a 18:00h. Para eventos nocturnos privados, consultar disponibilidad.' },
-  { q: '¿Hay parking disponible?', a: 'Sí, disponemos de un amplio aparcamiento gratuito junto al restaurante, ideal para grupos grandes.' },
-  { q: '¿Puedo reservar para más de 6 personas?', a: 'Por supuesto. Para grupos de 7 o más personas selecciona la opción "Grupo / Evento" en el formulario de reserva. Tenemos menús cerrados desde 29€/persona con todo incluido.' },
-  { q: '¿Cómo funciona la señal para grupos?', a: 'Al reservar un evento o grupo se requiere una señal del 40% del total, que puedes pagar online de forma segura. Tienes 4 días para completar el pago desde la confirmación.' },
-  { q: '¿Puedo cancelar o modificar mi reserva?', a: 'Puedes modificar tu reserva hasta 72 horas antes del evento. Si cancelas fuera de plazo, la señal no se devuelve. Para mesas individuales, puedes cancelar con 24h de antelación.' },
-  { q: '¿Tienen opciones para alérgenos o intolerancias?', a: 'Sí. Solo necesitas indicarlo con un mínimo de 72 horas de antelación para que nuestro equipo de cocina prepare las adaptaciones necesarias.' },
-  { q: '¿Pueden venir niños?', a: 'Sí, tenemos menú infantil (14,50€) con opciones adaptadas. También organizamos cumpleaños y fiestas infantiles con zona reservada.' },
-  { q: '¿Se admiten mascotas en la terraza?', a: 'Sí, las mascotas son bienvenidas en la terraza exterior. Solo pedimos que estén atadas y no molesten al resto de clientes.' },
-  { q: '¿Hay algún mínimo de personas para reservar?', a: 'Para mesas individuales puedes reservar desde 1 persona. Para grupos y eventos, el mínimo es de 7 personas.' },
-  { q: '¿Se puede personalizar el menú de grupo?', a: 'Los menús de grupo son cerrados para garantizar la calidad del servicio. Si necesitas adaptaciones por alergias o intolerancias, no dudes en contactarnos con antelación.' },
-]
+/* ─── Animated Counter ────────────────────────────────────────────────────── */
+function AnimatedCounter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
+  const [count, setCount] = useState(0)
+  const [started, setStarted] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
 
-function FaqItem({ q, a }: { q: string; a: string }) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !started) { setStarted(true); obs.unobserve(el) }
+    }, { threshold: 0.5 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [started])
+
+  useEffect(() => {
+    if (!started) return
+    const startTime = performance.now()
+    const animate = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3) // easeOutCubic
+      setCount(Math.round(target * eased))
+      if (progress < 1) requestAnimationFrame(animate)
+    }
+    requestAnimationFrame(animate)
+  }, [started, target, duration])
+
+  return <span ref={ref} className="counter__value">{count}{suffix}</span>
+}
+
+/* ─── Smooth FAQ ──────────────────────────────────────────────────────────── */
+function FaqItem({ q, a, index }: { q: string; a: string; index: number }) {
   const [open, setOpen] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState(0)
+
+  useEffect(() => {
+    if (contentRef.current) setHeight(contentRef.current.scrollHeight)
+  }, [a])
+
   return (
     <div className={`faq__item ${open ? 'faq__item--open' : ''}`}>
       <button className="faq__q" onClick={() => setOpen(o => !o)}>
-        <span>{q}</span>
-        <span className="faq__toggle">{open ? '−' : '+'}</span>
+        <span className="faq__q-num">{String(index + 1).padStart(2, '0')}</span>
+        <span className="faq__q-text">{q}</span>
+        <span className="faq__toggle">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 9l6 6 6-6" stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round"/></svg>
+        </span>
       </button>
-      {open && <div className="faq__a"><p>{a}</p></div>}
+      <div className="faq__a-wrap" style={{ maxHeight: open ? height + 24 : 0 }}>
+        <div ref={contentRef} className="faq__a"><p>{a}</p></div>
+      </div>
     </div>
   )
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   RESERVATION FORM COMPONENT
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* ─── Menu Tabs ───────────────────────────────────────────────────────────── */
+const MENU_CATS = [
+  { key: 'all', label: 'Todos' },
+  { key: 'grupo', label: 'Grupo Sentado' },
+  { key: 'picapica', label: 'Pica-Pica' },
+  { key: 'infantil', label: 'Infantil' },
+]
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESERVATION FORM
+   ═══════════════════════════════════════════════════════════════════════════ */
 type ReservationType = 'individual' | 'group' | null
-type FormStep = 1 | 2 | 3 | 4 | 5 // 5 = result
+type FormStep = 1 | 2 | 3 | 4 | 5
 
 interface FormState {
   type: ReservationType
-  // Details
-  fecha: string
-  hora: string
-  personas: number
-  zona: 'fuera' | 'dentro' | ''
-  // Group-specific
-  event_type: string
-  menu_code: string
-  // Personal
-  nombre: string
-  telefono: string
-  condiciones: boolean
-  // Anti-bot
-  _hp: string
-  _ts: number
+  fecha: string; hora: string; personas: number; zona: 'fuera' | 'dentro' | ''
+  event_type: string; menu_code: string
+  nombre: string; telefono: string; email: string; condiciones: boolean
+  _hp: string; _ts: number
 }
 
 const INITIAL_FORM: FormState = {
   type: null, fecha: '', hora: '', personas: 2, zona: '',
-  event_type: '', menu_code: '', nombre: '', telefono: '',
+  event_type: '', menu_code: '', nombre: '', telefono: '', email: '',
   condiciones: false, _hp: '', _ts: Date.now(),
 }
 
@@ -202,39 +246,28 @@ function ReservationForm() {
   const [availability, setAvailability] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; message: string }>({ status: 'idle', message: '' })
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; message: string; stripeUrl?: string; tableId?: string } | null>(null)
+  const [confetti, setConfetti] = useState(false)
 
   const set = useCallback((updates: Partial<FormState>) => {
     setForm(prev => ({ ...prev, ...updates }))
-    // Clear errors for updated fields
     const keys = Object.keys(updates)
-    setErrors(prev => {
-      const next = { ...prev }
-      keys.forEach(k => delete next[k])
-      return next
-    })
+    setErrors(prev => { const next = { ...prev }; keys.forEach(k => delete next[k]); return next })
   }, [])
 
-  // ── Check availability when date/time/personas/event change ──
+  // ── Availability check ──
   useEffect(() => {
     if (step !== 2 || !form.fecha || !form.hora || !form.personas) return
     const eventType = form.type === 'individual' ? 'RESERVA_NORMAL' : form.event_type
     if (!eventType) return
 
     setAvailability({ status: 'loading', message: 'Comprobando disponibilidad...' })
-
     const ctrl = new AbortController()
     const timer = setTimeout(async () => {
       try {
         const res = await fetch('/api/availability', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fecha: form.fecha,
-            hora: form.hora,
-            personas: form.personas,
-            event_type: eventType,
-            zona: form.zona || undefined,
-          }),
+          body: JSON.stringify({ fecha: form.fecha, hora: form.hora, personas: form.personas, event_type: eventType, zona: form.zona || undefined }),
           signal: ctrl.signal,
         })
         const data = await res.json()
@@ -245,23 +278,15 @@ function ReservationForm() {
           setAvailability({ status: 'error', message: (data.message || 'No disponible') + alts })
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          setAvailability({ status: 'error', message: 'Error al comprobar disponibilidad' })
-        }
+        if (err.name !== 'AbortError') setAvailability({ status: 'error', message: 'Error al comprobar disponibilidad' })
       }
     }, 500)
-
     return () => { clearTimeout(timer); ctrl.abort() }
   }, [step, form.fecha, form.hora, form.personas, form.type, form.event_type, form.zona])
 
-  // ── Validate step ──
   const validateStep = (s: FormStep): boolean => {
     const errs: Record<string, string> = {}
-
-    if (s === 1) {
-      if (!form.type) errs.type = 'Selecciona un tipo de reserva'
-    }
-
+    if (s === 1) { if (!form.type) errs.type = 'Selecciona un tipo de reserva' }
     if (s === 2) {
       if (!form.fecha) errs.fecha = 'Selecciona una fecha'
       if (!form.hora) errs.hora = 'Selecciona una hora'
@@ -275,149 +300,132 @@ function ReservationForm() {
       if (availability.status === 'error') errs._avail = 'No hay disponibilidad en la fecha/hora seleccionada'
       if (availability.status === 'loading') errs._avail = 'Espera a que se compruebe la disponibilidad'
     }
-
     if (s === 3) {
       if (!form.nombre || form.nombre.trim().length < 2) errs.nombre = 'Nombre obligatorio (mín. 2 caracteres)'
       if (!form.telefono || !/^[+\d\s()-]{6,20}$/.test(form.telefono)) errs.telefono = 'Teléfono inválido'
+      if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Email inválido'
       if (!form.condiciones) errs.condiciones = 'Debes aceptar las condiciones'
     }
-
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
 
-  // ── Navigate ──
-  const next = () => {
-    if (!validateStep(step)) return
-    if (step === 4) return // Result step handled by submit
-    setStep(s => Math.min(s + 1, 4) as FormStep)
-  }
-
+  const next = () => { if (!validateStep(step)) return; setStep(s => Math.min(s + 1, 4) as FormStep) }
   const back = () => setStep(s => Math.max(s - 1, 1) as FormStep)
 
-  // ── Submit ──
   const submit = async () => {
     if (!validateStep(3)) return
     setSubmitting(true)
-
     const eventType = form.type === 'individual' ? 'RESERVA_NORMAL' : form.event_type
     const payload: Record<string, unknown> = {
-      nombre: form.nombre.trim(),
-      telefono: form.telefono.trim(),
-      fecha: form.fecha,
-      hora: form.hora,
-      personas: form.personas,
-      event_type: eventType,
-      _hp: form._hp,
-      _ts: form._ts,
+      nombre: form.nombre.trim(), telefono: form.telefono.trim(), email: form.email.trim().toLowerCase(),
+      fecha: form.fecha, hora: form.hora, personas: form.personas, event_type: eventType, _hp: form._hp, _ts: form._ts,
     }
     if (form.zona) payload.zona = form.zona
     if (form.type === 'group' && form.menu_code) payload.menu_code = form.menu_code
 
     try {
-      const res = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const res = await fetch('/api/reservations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
-
       if (res.ok && data.ok) {
-        setResult({
-          ok: true,
-          message: data.message || 'Reserva creada correctamente',
-          stripeUrl: data.stripe_url,
-          tableId: data.table_id,
-        })
+        setResult({ ok: true, message: data.message || 'Reserva creada correctamente', stripeUrl: data.stripe_url, tableId: data.table_id })
+        setConfetti(true)
+        setTimeout(() => setConfetti(false), 4000)
       } else {
         setResult({ ok: false, message: data.error || 'Error al crear la reserva' })
       }
-    } catch {
-      setResult({ ok: false, message: 'Error de conexión. Inténtalo de nuevo.' })
-    } finally {
-      setSubmitting(false)
-      setStep(5)
-    }
+    } catch { setResult({ ok: false, message: 'Error de conexión. Inténtalo de nuevo.' }) }
+    finally { setSubmitting(false); setStep(5) }
   }
 
-  // ── Computed ──
   const selectedMenu = API_MENUS.find(m => m.code === form.menu_code)
   const total = selectedMenu ? selectedMenu.price * form.personas : 0
   const deposit = Math.round(total * 0.4 * 100) / 100
   const isGroup = form.type === 'group'
   const availableMenus = API_MENUS.filter(m => m.eventTypes.includes(form.event_type))
   const timeSlots = form.type === 'individual' ? TIME_SLOTS_NORMAL : TIME_SLOTS_EVENT
-
-  // ── Get min date (today + buffer) ──
   const today = new Date()
   const minDateObj = new Date(today)
   if (isGroup) minDateObj.setDate(minDateObj.getDate() + 5)
   else minDateObj.setDate(minDateObj.getDate() + 1)
   const minDate = minDateObj.toISOString().split('T')[0]
-
   const STEP_LABELS = ['Tipo', 'Detalles', 'Datos', 'Confirmar']
 
-  // ── Reset ──
   const reset = () => {
-    setStep(1)
-    setForm({ ...INITIAL_FORM, _ts: Date.now() })
-    setErrors({})
-    setAvailability({ status: 'idle', message: '' })
-    setResult(null)
+    setStep(1); setForm({ ...INITIAL_FORM, _ts: Date.now() }); setErrors({})
+    setAvailability({ status: 'idle', message: '' }); setResult(null); setConfetti(false)
   }
+
+  const progressPercent = step <= 4 ? ((step - 1) / 3) * 100 : 100
 
   return (
     <div className="rf">
+      {/* Confetti */}
+      {confetti && (
+        <div className="rf__confetti">
+          {Array.from({ length: 50 }).map((_, i) => (
+            <div key={i} className="rf__confetti-piece" style={{
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 0.5}s`,
+              animationDuration: `${1.5 + Math.random() * 2}s`,
+              backgroundColor: ['#B08D57', '#C4724E', '#2563eb', '#16a34a', '#f59e0b', '#7c3aed'][Math.floor(Math.random() * 6)],
+            }} />
+          ))}
+        </div>
+      )}
+
       {/* Progress */}
       {step <= 4 && (
         <div className="rf__progress">
-          {STEP_LABELS.map((label, i) => {
-            const num = i + 1
-            const isActive = step === num
-            const isDone = step > num
-            return (
-              <div key={i} className={`rf__step ${isActive ? 'rf__step--active' : ''} ${isDone ? 'rf__step--done' : ''}`}>
-                <span className="rf__step-num">{isDone ? '✓' : num}</span>
-                <span>{label}</span>
-              </div>
-            )
-          })}
+          <div className="rf__progress-bar" style={{ width: `${progressPercent}%` }} />
+          <div className="rf__progress-steps">
+            {STEP_LABELS.map((label, i) => {
+              const num = i + 1
+              const isActive = step === num
+              const isDone = step > num
+              return (
+                <div key={i} className={`rf__step ${isActive ? 'rf__step--active' : ''} ${isDone ? 'rf__step--done' : ''}`}>
+                  <span className="rf__step-num">{isDone ? '✓' : num}</span>
+                  <span className="rf__step-label">{label}</span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
       <div className="rf__body">
-        {/* Honeypot */}
         <div className="rf__hp" aria-hidden="true">
           <label htmlFor="rf_website">Website</label>
-          <input id="rf_website" type="text" tabIndex={-1} autoComplete="off"
-            value={form._hp} onChange={e => set({ _hp: e.target.value })} />
+          <input id="rf_website" type="text" tabIndex={-1} autoComplete="off" value={form._hp} onChange={e => set({ _hp: e.target.value })} />
         </div>
 
-        {/* ── STEP 1: Choose type ── */}
+        {/* ── STEP 1: Type ── */}
         {step === 1 && (
           <div className="rf__slide" key="s1">
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 600, color: 'var(--ink)', marginBottom: 8, textAlign: 'center' }}>
-              ¿Qué tipo de reserva necesitas?
-            </h3>
-            <p style={{ fontSize: '.88rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 28 }}>
-              Selecciona una opción para continuar
-            </p>
+            <div className="rf__header">
+              <span className="rf__header-icon"><Icon.Sparkles /></span>
+              <h3>¿Qué tipo de reserva necesitas?</h3>
+              <p>Selecciona una opción para continuar</p>
+            </div>
             <div className="rf__types">
               <div className={`rf__type ${form.type === 'individual' ? 'rf__type--active' : ''}`} onClick={() => set({ type: 'individual', event_type: '', menu_code: '', personas: 2 })}>
+                <div className="rf__type-glow" />
                 <span className="rf__type-icon"><Icon.Users /></span>
                 <h4>Mesa Individual</h4>
-                <p>De 1 a 6 personas. Confirmación inmediata.</p>
+                <p>De 1 a 6 personas</p>
+                <span className="rf__type-badge">Confirmación inmediata</span>
               </div>
               <div className={`rf__type ${form.type === 'group' ? 'rf__type--active' : ''}`} onClick={() => set({ type: 'group', personas: 10 })}>
+                <div className="rf__type-glow" />
                 <span className="rf__type-icon"><Icon.Utensils /></span>
                 <h4>Grupo / Evento</h4>
-                <p>7+ personas. Menú fijo, señal 40%.</p>
+                <p>7+ personas · Menú fijo</p>
+                <span className="rf__type-badge">Señal 40%</span>
               </div>
             </div>
             {errors.type && <p className="rf__error" style={{ textAlign: 'center', marginTop: 12 }}>{errors.type}</p>}
-            <div className="rf__actions" style={{ marginTop: 28 }}>
-              <button className="btn btn--gold" onClick={next}>Continuar</button>
-            </div>
+            <div className="rf__actions"><button className="btn btn--primary btn--lg" onClick={next}>Continuar →</button></div>
           </div>
         )}
 
@@ -426,32 +434,27 @@ function ReservationForm() {
           <div className="rf__slide" key="s2">
             <div className="rf__row">
               <div className="rf__field">
-                <label className="rf__label">Fecha</label>
-                <input type="date" className={`rf__input ${errors.fecha ? 'rf__input--error' : ''}`}
-                  value={form.fecha} min={minDate} onChange={e => set({ fecha: e.target.value })} />
+                <label className="rf__label">📅 Fecha</label>
+                <input type="date" className={`rf__input ${errors.fecha ? 'rf__input--error' : ''}`} value={form.fecha} min={minDate} onChange={e => set({ fecha: e.target.value })} />
                 {errors.fecha && <span className="rf__error">{errors.fecha}</span>}
               </div>
               <div className="rf__field">
-                <label className="rf__label">Hora</label>
-                <select className={`rf__input ${errors.hora ? 'rf__input--error' : ''}`}
-                  value={form.hora} onChange={e => set({ hora: e.target.value })}>
+                <label className="rf__label">🕐 Hora</label>
+                <select className={`rf__input ${errors.hora ? 'rf__input--error' : ''}`} value={form.hora} onChange={e => set({ hora: e.target.value })}>
                   <option value="">Seleccionar hora</option>
                   {timeSlots.map(t => <option key={t} value={t}>{t}h</option>)}
                 </select>
                 {errors.hora && <span className="rf__error">{errors.hora}</span>}
               </div>
             </div>
-
             <div className="rf__row">
               <div className="rf__field">
-                <label className="rf__label">Personas</label>
-                <input type="number" className={`rf__input ${errors.personas ? 'rf__input--error' : ''}`}
-                  value={form.personas} min={isGroup ? 7 : 1} max={isGroup ? 100 : 6}
-                  onChange={e => set({ personas: parseInt(e.target.value) || 0 })} />
+                <label className="rf__label">👥 Personas</label>
+                <input type="number" className={`rf__input ${errors.personas ? 'rf__input--error' : ''}`} value={form.personas} min={isGroup ? 7 : 1} max={isGroup ? 100 : 6} onChange={e => set({ personas: parseInt(e.target.value) || 0 })} />
                 {errors.personas && <span className="rf__error">{errors.personas}</span>}
               </div>
               <div className="rf__field">
-                <label className="rf__label">Zona (opcional)</label>
+                <label className="rf__label">📍 Zona</label>
                 <select className="rf__input" value={form.zona} onChange={e => set({ zona: e.target.value as any })}>
                   <option value="">Sin preferencia</option>
                   <option value="fuera">Terraza</option>
@@ -460,13 +463,11 @@ function ReservationForm() {
               </div>
             </div>
 
-            {/* Group-specific: event type */}
             {isGroup && (
               <div className="rf__row rf__row--full">
                 <div className="rf__field">
-                  <label className="rf__label">Tipo de evento</label>
-                  <select className={`rf__input ${errors.event_type ? 'rf__input--error' : ''}`}
-                    value={form.event_type} onChange={e => set({ event_type: e.target.value, menu_code: '' })}>
+                  <label className="rf__label">🎉 Tipo de evento</label>
+                  <select className={`rf__input ${errors.event_type ? 'rf__input--error' : ''}`} value={form.event_type} onChange={e => set({ event_type: e.target.value, menu_code: '' })}>
                     <option value="">Seleccionar tipo</option>
                     {Object.entries(EVENT_TYPES_MAP).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
@@ -475,21 +476,19 @@ function ReservationForm() {
               </div>
             )}
 
-            {/* Group-specific: menu selection */}
             {isGroup && form.event_type && (
               <>
-                <label className="rf__label" style={{ marginBottom: 10, display: 'block' }}>Selecciona tu menú</label>
+                <label className="rf__label" style={{ marginBottom: 10, display: 'block' }}>🍽️ Selecciona tu menú</label>
                 <div className="rf__menus">
                   {availableMenus.map(m => (
-                    <label key={m.code} className={`rf__menu-opt ${form.menu_code === m.code ? 'rf__menu-opt--active' : ''}`}
-                      onClick={() => set({ menu_code: m.code })}>
+                    <label key={m.code} className={`rf__menu-opt ${form.menu_code === m.code ? 'rf__menu-opt--active' : ''}`} onClick={() => set({ menu_code: m.code })}>
                       <input type="radio" name="menu" value={m.code} checked={form.menu_code === m.code} readOnly />
                       <span className="rf__menu-radio" />
                       <div className="rf__menu-info">
                         <h5>{m.name}</h5>
                         <p>IVA incluido</p>
                       </div>
-                      <span className="rf__menu-price">{m.price}€<small style={{ fontSize: '.7rem', color: 'var(--text-muted)', marginLeft: 4 }}>/pers.</small></span>
+                      <span className="rf__menu-price">{m.price}€<small>/pers.</small></span>
                     </label>
                   ))}
                 </div>
@@ -497,25 +496,18 @@ function ReservationForm() {
               </>
             )}
 
-            {/* Availability indicator */}
             {form.fecha && form.hora && (
-              <div style={{ textAlign: 'center', marginTop: 8 }}>
-                {availability.status === 'loading' && (
-                  <span className="rf__avail rf__avail--loading"><span className="rf__spinner" /> Comprobando...</span>
-                )}
-                {availability.status === 'ok' && (
-                  <span className="rf__avail rf__avail--ok"><Icon.Check /> Disponible</span>
-                )}
-                {availability.status === 'error' && (
-                  <span className="rf__avail rf__avail--no"><Icon.X /> {availability.message}</span>
-                )}
+              <div className="rf__avail-wrap">
+                {availability.status === 'loading' && <span className="rf__avail rf__avail--loading"><span className="rf__spinner" /> Comprobando...</span>}
+                {availability.status === 'ok' && <span className="rf__avail rf__avail--ok"><Icon.Check /> Disponible</span>}
+                {availability.status === 'error' && <span className="rf__avail rf__avail--no"><Icon.X /> {availability.message}</span>}
               </div>
             )}
-            {errors._avail && <p className="rf__error" style={{ textAlign: 'center', marginTop: 8 }}>{errors._avail}</p>}
+            {errors._avail && <p className="rf__error" style={{ textAlign: 'center' }}>{errors._avail}</p>}
 
-            <div className="rf__actions" style={{ marginTop: 24 }}>
+            <div className="rf__actions">
               <button className="rf__back" onClick={back}>← Atrás</button>
-              <button className="btn btn--gold" onClick={next}>Continuar</button>
+              <button className="btn btn--primary" onClick={next}>Continuar →</button>
             </div>
           </div>
         )}
@@ -523,102 +515,78 @@ function ReservationForm() {
         {/* ── STEP 3: Personal data ── */}
         {step === 3 && (
           <div className="rf__slide" key="s3">
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600, color: 'var(--ink)', marginBottom: 24 }}>
-              Datos de contacto
-            </h3>
+            <div className="rf__header">
+              <h3>Datos de contacto</h3>
+              <p>Te enviaremos la confirmación por email</p>
+            </div>
             <div className="rf__row">
               <div className="rf__field">
-                <label className="rf__label">Nombre completo</label>
-                <input type="text" placeholder="Tu nombre" className={`rf__input ${errors.nombre ? 'rf__input--error' : ''}`}
-                  value={form.nombre} onChange={e => set({ nombre: e.target.value })} autoComplete="name" />
+                <label className="rf__label">👤 Nombre completo</label>
+                <input type="text" placeholder="Tu nombre" className={`rf__input ${errors.nombre ? 'rf__input--error' : ''}`} value={form.nombre} onChange={e => set({ nombre: e.target.value })} autoComplete="name" />
                 {errors.nombre && <span className="rf__error">{errors.nombre}</span>}
               </div>
               <div className="rf__field">
-                <label className="rf__label">Teléfono</label>
-                <input type="tel" placeholder="+34 600 000 000" className={`rf__input ${errors.telefono ? 'rf__input--error' : ''}`}
-                  value={form.telefono} onChange={e => set({ telefono: e.target.value })} autoComplete="tel" />
+                <label className="rf__label">📱 Teléfono</label>
+                <input type="tel" placeholder="+34 600 000 000" className={`rf__input ${errors.telefono ? 'rf__input--error' : ''}`} value={form.telefono} onChange={e => set({ telefono: e.target.value })} autoComplete="tel" />
                 {errors.telefono && <span className="rf__error">{errors.telefono}</span>}
+              </div>
+            </div>
+            <div className="rf__row rf__row--full">
+              <div className="rf__field">
+                <label className="rf__label">📧 Email</label>
+                <input type="email" placeholder="tu@email.com" className={`rf__input ${errors.email ? 'rf__input--error' : ''}`} value={form.email} onChange={e => set({ email: e.target.value })} autoComplete="email" />
+                {errors.email && <span className="rf__error">{errors.email}</span>}
+                <span className="rf__hint">Recibirás la confirmación y los detalles en este correo</span>
               </div>
             </div>
 
             <label className="rf__check">
               <input type="checkbox" checked={form.condiciones} onChange={e => set({ condiciones: e.target.checked })} />
               <span>
-                Acepto las <strong>condiciones de reserva</strong>: señal 40%, modificaciones hasta 72h antes,
-                cancelación fuera de plazo implica pérdida de la señal. IVA incluido.
+                Acepto las <Link href="/condiciones" target="_blank"><strong>condiciones de reserva</strong></Link>: señal 40%, modificaciones hasta 72h antes, cancelación fuera de plazo implica pérdida de la señal. IVA incluido.
               </span>
             </label>
             {errors.condiciones && <p className="rf__error">{errors.condiciones}</p>}
 
             <div className="rf__actions">
               <button className="rf__back" onClick={back}>← Atrás</button>
-              <button className="btn btn--gold" onClick={() => { if (validateStep(3)) setStep(4) }}>
-                Revisar Resumen
-              </button>
+              <button className="btn btn--primary" onClick={() => { if (validateStep(3)) setStep(4) }}>Revisar Resumen →</button>
             </div>
           </div>
         )}
 
-        {/* ── STEP 4: Summary + confirm ── */}
+        {/* ── STEP 4: Summary ── */}
         {step === 4 && (
           <div className="rf__slide" key="s4">
             <div className="rf__summary">
-              <h4>Resumen de tu reserva</h4>
-              <div className="rf__summary-row">
-                <span>Tipo</span>
-                <span>{form.type === 'individual' ? 'Mesa Individual' : EVENT_TYPES_MAP[form.event_type] || 'Grupo'}</span>
-              </div>
-              <div className="rf__summary-row">
-                <span>Fecha y hora</span>
-                <span>{form.fecha} a las {form.hora}h</span>
-              </div>
-              <div className="rf__summary-row">
-                <span>Personas</span>
-                <span>{form.personas}</span>
-              </div>
-              {form.zona && (
-                <div className="rf__summary-row">
-                  <span>Zona</span>
-                  <span>{form.zona === 'fuera' ? 'Terraza' : 'Interior'}</span>
-                </div>
-              )}
-              <div className="rf__summary-row">
-                <span>Nombre</span>
-                <span>{form.nombre}</span>
-              </div>
-              <div className="rf__summary-row">
-                <span>Teléfono</span>
-                <span>{form.telefono}</span>
-              </div>
+              <h4>📋 Resumen de tu reserva</h4>
+              <div className="rf__summary-row"><span>Tipo</span><span>{form.type === 'individual' ? 'Mesa Individual' : EVENT_TYPES_MAP[form.event_type] || 'Grupo'}</span></div>
+              <div className="rf__summary-row"><span>Fecha y hora</span><span>{form.fecha} a las {form.hora}h</span></div>
+              <div className="rf__summary-row"><span>Personas</span><span>{form.personas}</span></div>
+              {form.zona && <div className="rf__summary-row"><span>Zona</span><span>{form.zona === 'fuera' ? 'Terraza' : 'Interior'}</span></div>}
+              <div className="rf__summary-row"><span>Nombre</span><span>{form.nombre}</span></div>
+              <div className="rf__summary-row"><span>Email</span><span>{form.email}</span></div>
+              <div className="rf__summary-row"><span>Teléfono</span><span>{form.telefono}</span></div>
               {isGroup && selectedMenu && (
                 <>
-                  <div className="rf__summary-row">
-                    <span>Menú</span>
-                    <span>{selectedMenu.name}</span>
-                  </div>
-                  <div className="rf__summary-total">
-                    <span>Total</span>
-                    <span>{total}€</span>
-                  </div>
-                  <div className="rf__deposit">
-                    <span>Señal 40%</span>
-                    <span>{deposit}€</span>
-                  </div>
+                  <div className="rf__summary-row"><span>Menú</span><span>{selectedMenu.name}</span></div>
+                  <div className="rf__summary-total"><span>Total</span><span>{total}€</span></div>
+                  <div className="rf__deposit"><span>Señal 40%</span><span>{deposit}€</span></div>
                 </>
               )}
             </div>
 
             {isGroup && (
-              <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 20 }}>
-                Al confirmar se creará tu reserva y recibirás un enlace de pago por WhatsApp para la señal de {deposit}€.
-                Tienes 4 días para completar el pago.
-              </p>
+              <div className="rf__notice">
+                <Icon.Shield />
+                <p>Al confirmar recibirás un <strong>email con el enlace de pago</strong> para la señal de {deposit}€. Tienes 4 días para completar el pago. Pago seguro con Stripe.</p>
+              </div>
             )}
 
             <div className="rf__actions">
               <button className="rf__back" onClick={back}>← Modificar</button>
-              <button className="btn btn--gold" onClick={submit} disabled={submitting}>
-                {submitting ? <><span className="rf__spinner" /> Procesando...</> : 'Confirmar Reserva'}
+              <button className="btn btn--primary btn--lg" onClick={submit} disabled={submitting}>
+                {submitting ? <><span className="rf__spinner" /> Procesando...</> : '✓ Confirmar Reserva'}
               </button>
             </div>
           </div>
@@ -631,17 +599,16 @@ function ReservationForm() {
               <div className={`rf__result-icon ${result.ok ? 'rf__result-icon--ok' : 'rf__result-icon--err'}`}>
                 {result.ok ? <Icon.Check /> : <Icon.X />}
               </div>
-              <h3>{result.ok ? '¡Reserva Confirmada!' : 'Error'}</h3>
+              <h3>{result.ok ? '¡Reserva Confirmada!' : 'Algo salió mal'}</h3>
               <p>{result.message}</p>
-              {result.ok && result.tableId && (
-                <p style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>Mesa asignada: {result.tableId}</p>
-              )}
+              {result.ok && result.tableId && <p className="rf__result-detail">Mesa asignada: <strong>{result.tableId}</strong></p>}
+              {result.ok && <p className="rf__result-detail">📧 Hemos enviado la confirmación a <strong>{form.email}</strong></p>}
               {result.ok && result.stripeUrl && (
-                <a href={result.stripeUrl} target="_blank" rel="noopener noreferrer" className="btn btn--gold" style={{ marginTop: 16 }}>
-                  Pagar Señal ({deposit}€)
+                <a href={result.stripeUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--lg" style={{ marginTop: 20 }}>
+                  💳 Pagar Señal ({deposit}€)
                 </a>
               )}
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: 28 }}>
                 <button className="btn btn--outline btn--sm" onClick={reset}>Nueva Reserva</button>
               </div>
             </div>
@@ -655,12 +622,12 @@ function ReservationForm() {
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════════════════ */
-
 export default function Home() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenu, setMobileMenu] = useState(false)
-  const [activeMenu, setActiveMenu] = useState(0)
+  const [menuCat, setMenuCat] = useState('all')
   const menuScrollRef = useRef<HTMLDivElement>(null)
+  const [activeMenu, setActiveMenu] = useState(0)
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 50)
@@ -674,18 +641,18 @@ export default function Home() {
     const onScroll = () => {
       const card = el.querySelector('.mc') as HTMLElement | null
       if (!card) return
-      const w = card.offsetWidth + 36
+      const w = card.offsetWidth + 24
       const idx = Math.round(el.scrollLeft / w)
-      setActiveMenu(Math.max(0, Math.min(idx, MENUS_DISPLAY.length - 1)))
+      setActiveMenu(Math.max(0, Math.min(idx, filteredMenus.length - 1)))
     }
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [])
+  })
 
   const scrollMenus = useCallback((dir: 'left' | 'right') => {
     if (!menuScrollRef.current) return
     const card = menuScrollRef.current.querySelector('.mc') as HTMLElement | null
-    const amt = card ? card.offsetWidth + 36 : menuScrollRef.current.offsetWidth
+    const amt = card ? card.offsetWidth + 24 : menuScrollRef.current.offsetWidth
     menuScrollRef.current.scrollBy({ left: dir === 'left' ? -amt : amt, behavior: 'smooth' })
   }, [])
 
@@ -693,6 +660,8 @@ export default function Home() {
     setMobileMenu(false)
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }, [])
+
+  const filteredMenus = menuCat === 'all' ? MENUS_DISPLAY : MENUS_DISPLAY.filter(m => m.cat === menuCat)
 
   const NAV_ITEMS = [
     { id: 'about', label: 'Nosotros' },
@@ -709,9 +678,12 @@ export default function Home() {
       {/* ━━━ NAVBAR ━━━ */}
       <nav className={`nav ${scrolled ? 'nav--solid' : ''}`}>
         <div className="nav__inner">
-          <button className="nav__logo" onClick={() => scrollTo('hero')}>CANAL OLÍMPICO</button>
+          <button className="nav__logo" onClick={() => scrollTo('hero')}>
+            <span className="nav__logo-text">CANAL OLÍMPICO</span>
+          </button>
           <div className="nav__links">
             {NAV_ITEMS.map(n => <button key={n.id} onClick={() => scrollTo(n.id)}>{n.label}</button>)}
+            <button className="nav__cta" onClick={() => scrollTo('reservar')}>Reservar</button>
           </div>
           <button className="nav__burger" onClick={() => setMobileMenu(v => !v)} aria-label="Menú">
             <span className={mobileMenu ? 'open' : ''} />
@@ -721,6 +693,7 @@ export default function Home() {
         </div>
         <div className={`nav__mobile ${mobileMenu ? 'nav__mobile--open' : ''}`}>
           {NAV_ITEMS.map(n => <button key={n.id} onClick={() => scrollTo(n.id)}>{n.label}</button>)}
+          <button className="nav__mobile-cta" onClick={() => scrollTo('reservar')}>🗓️ Reservar Mesa</button>
         </div>
       </nav>
 
@@ -729,7 +702,6 @@ export default function Home() {
         <Image src="/hero.jpg" alt="Canal Olímpico Restaurante" fill priority className="hero__img" sizes="100vw" />
         <div className="hero__overlay" />
         <div className="hero__vignette" />
-        <div className="hero__grain" />
         <div className="hero__content">
           <div className="hero__gold-line hero__anim" style={{ animationDelay: '.2s' }} />
           <span className="hero__tag hero__anim" style={{ animationDelay: '.4s' }}>Restaurante · Terraza · Eventos</span>
@@ -750,8 +722,8 @@ export default function Home() {
             <span className="hero__loc-icon">◆</span> Castelldefels, Barcelona
           </p>
           <div className="hero__buttons hero__anim" style={{ animationDelay: '1.7s' }}>
-            <button className="btn btn--gold btn--hero" onClick={() => scrollTo('reservar')}>Reservar Mesa</button>
-            <button className="btn btn--outline-lt btn--hero" onClick={() => scrollTo('carta')}>Descubrir Carta</button>
+            <button className="btn btn--primary btn--hero" onClick={() => scrollTo('reservar')}>Reservar Mesa</button>
+            <button className="btn btn--glass btn--hero" onClick={() => scrollTo('carta')}>Descubrir Carta</button>
           </div>
         </div>
         <button className="hero__arrow" onClick={() => scrollTo('about')} aria-label="Scroll">
@@ -764,20 +736,20 @@ export default function Home() {
         <div className="container">
           <div className="trust-bar__grid">
             <div className="trust-bar__item">
-              <span className="trust-bar__number">98</span>
+              <AnimatedCounter target={98} />
               <span className="trust-bar__text">Plazas disponibles</span>
             </div>
             <div className="trust-bar__item">
-              <span className="trust-bar__icon">☀️</span>
-              <span className="trust-bar__text">Terraza junto al agua</span>
+              <AnimatedCounter target={500} suffix="+" />
+              <span className="trust-bar__text">Eventos realizados</span>
             </div>
             <div className="trust-bar__item">
-              <span className="trust-bar__icon">👥</span>
-              <span className="trust-bar__text">Grupos y eventos</span>
+              <AnimatedCounter target={4} suffix=".8★" />
+              <span className="trust-bar__text">Valoración Google</span>
             </div>
             <div className="trust-bar__item">
-              <span className="trust-bar__icon">📱</span>
-              <span className="trust-bar__text">Reserva online 24h</span>
+              <span className="counter__value">24h</span>
+              <span className="trust-bar__text">Reserva online</span>
             </div>
           </div>
         </div>
@@ -803,11 +775,17 @@ export default function Home() {
               <p>
                 Menús de grupo desde 29€/persona con todo incluido. Reserva online en 2 minutos, sin llamar, sin esperar.
               </p>
-              <button className="btn btn--gold" onClick={() => scrollTo('reservar')} style={{ marginTop: 12 }}>
-                Reservar ahora
+              <div className="about-chips">
+                <span className="chip">🌊 Vistas al agua</span>
+                <span className="chip">☀️ Terraza 200m²</span>
+                <span className="chip">🍃 Producto Km 0</span>
+                <span className="chip">♿ Accesible</span>
+              </div>
+              <button className="btn btn--primary" onClick={() => scrollTo('reservar')} style={{ marginTop: 20 }}>
+                Reservar ahora →
               </button>
             </Reveal>
-            <Reveal className="about-split__img">
+            <Reveal className="about-split__img" delay={200}>
               <Image src="/terraza.jpg" alt="Terraza Canal Olímpico" width={580} height={400} className="about-photo" sizes="(max-width:768px) 100vw, 50vw" />
             </Reveal>
           </div>
@@ -849,16 +827,25 @@ export default function Home() {
             <div className="sec__line" />
             <p className="sec__sub">Menús cerrados para grupos y eventos. Todo incluido, IVA incluido, sin sorpresas.</p>
           </Reveal>
+
+          {/* Menu category tabs */}
+          <Reveal>
+            <div className="menu-tabs">
+              {MENU_CATS.map(c => (
+                <button key={c.key} className={`menu-tab ${menuCat === c.key ? 'menu-tab--active' : ''}`} onClick={() => setMenuCat(c.key)}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </Reveal>
         </div>
 
         <Reveal>
           <div className="menus-wrap">
-            <button className="menus-arr menus-arr--l" onClick={() => scrollMenus('left')} aria-label="Anterior">
-              <Icon.ArrowLeft />
-            </button>
+            <button className="menus-arr menus-arr--l" onClick={() => scrollMenus('left')} aria-label="Anterior"><Icon.ArrowLeft /></button>
             <div className="menus-scroll" ref={menuScrollRef}>
-              {MENUS_DISPLAY.map((m, i) => (
-                <article key={i} className={`mc mc--${m.accent}`}>
+              {filteredMenus.map((m, i) => (
+                <article key={`${m.name}-${menuCat}`} className={`mc mc--${m.accent}`} style={{ animationDelay: `${i * 100}ms` }}>
                   <div className="mc__accent" />
                   {m.badge && <span className="mc__badge">{m.badge}</span>}
                   <div className="mc__top">
@@ -877,31 +864,19 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                  <div className="mc__foot">
-                    <Icon.Wine /> {m.drinks}
-                  </div>
+                  <div className="mc__foot"><Icon.Wine /> {m.drinks}</div>
                   <div className="mc__cta">
-                    <button className="btn btn--gold btn--sm mc__cta-btn" onClick={() => scrollTo('reservar')}>
-                      Reservar con este menú
-                    </button>
+                    <button className="btn btn--primary btn--sm mc__cta-btn" onClick={() => scrollTo('reservar')}>Reservar con este menú</button>
                   </div>
                 </article>
               ))}
             </div>
-            <button className="menus-arr menus-arr--r" onClick={() => scrollMenus('right')} aria-label="Siguiente">
-              <Icon.ArrowRight />
-            </button>
+            <button className="menus-arr menus-arr--r" onClick={() => scrollMenus('right')} aria-label="Siguiente"><Icon.ArrowRight /></button>
           </div>
           <div className="menus-dots">
-            {MENUS_DISPLAY.map((_, i) => (
-              <button key={i} className={`menus-dot ${i === activeMenu ? 'menus-dot--active' : ''}`}
-                aria-label={`Menú ${i + 1}`}
-                onClick={() => {
-                  if (!menuScrollRef.current) return
-                  const card = menuScrollRef.current.querySelector('.mc') as HTMLElement | null
-                  const w = card ? card.offsetWidth + 36 : 0
-                  menuScrollRef.current.scrollTo({ left: w * i, behavior: 'smooth' })
-                }} />
+            {filteredMenus.map((_, i) => (
+              <button key={i} className={`menus-dot ${i === activeMenu ? 'menus-dot--active' : ''}`} aria-label={`Menú ${i + 1}`}
+                onClick={() => { if (!menuScrollRef.current) return; const card = menuScrollRef.current.querySelector('.mc') as HTMLElement | null; const w = card ? card.offsetWidth + 24 : 0; menuScrollRef.current.scrollTo({ left: w * i, behavior: 'smooth' }) }} />
             ))}
           </div>
           <p className="menus-hint">← Desliza para ver todos los menús →</p>
@@ -913,11 +888,12 @@ export default function Home() {
         <div className="cta-banner__overlay" />
         <div className="container cta-banner__inner">
           <Reveal>
+            <span className="cta-banner__label">TU PRÓXIMO EVENTO</span>
             <h2 className="cta-banner__title">¿Celebras algo especial?</h2>
             <p className="cta-banner__sub">Cumpleaños, comuniones, comidas de empresa, fiestas privadas — reserva tu evento en 2 minutos.</p>
             <div className="cta-banner__btns">
-              <button className="btn btn--gold btn--hero" onClick={() => scrollTo('reservar')}>Reservar evento</button>
-              <a href="tel:629358562" className="btn btn--outline-lt btn--hero">Llamar: 629 35 85 62</a>
+              <button className="btn btn--primary btn--hero" onClick={() => scrollTo('reservar')}>Reservar evento →</button>
+              <a href="tel:629358562" className="btn btn--glass btn--hero">📞 629 35 85 62</a>
             </div>
           </Reveal>
         </div>
@@ -928,10 +904,10 @@ export default function Home() {
         <div className="container">
           <Reveal>
             <span className="sec__label">RESERVAS</span>
-            <h2 className="sec__heading">Reserva tu mesa<br />o evento</h2>
+            <h2 className="sec__heading">Reserva tu mesa o evento</h2>
             <div className="sec__line" />
             <p className="sec__sub">
-              Completa el formulario y recibirás confirmación inmediata.
+              Completa el formulario y recibirás confirmación inmediata por email.
               Para grupos, el pago de la señal se gestiona de forma segura online.
             </p>
           </Reveal>
@@ -960,6 +936,7 @@ export default function Home() {
                     <div className="ev__icon">{IconComp && <IconComp />}</div>
                     <h3>{ev.title}</h3>
                     <p>{ev.desc}</p>
+                    <span className="ev__price">{ev.price}</span>
                   </div>
                 )
               })}
@@ -981,15 +958,6 @@ export default function Home() {
               </div>
             </div>
           </Reveal>
-          <Reveal>
-            <div className="cta">
-              <p className="cta__text">¿Prefieres contactarnos directamente?</p>
-              <div className="cta__btns">
-                <a href="tel:629358562" className="btn btn--gold">Llamar: 629 35 85 62</a>
-                <a href="https://wa.me/34629358562" target="_blank" rel="noopener noreferrer" className="btn btn--outline-lt">WhatsApp</a>
-              </div>
-            </div>
-          </Reveal>
         </div>
       </section>
 
@@ -1002,15 +970,7 @@ export default function Home() {
             <div className="sec__line" />
           </Reveal>
           <Reveal>
-            <div className="faq">
-              {FAQ_DATA.map((item, i) => <FaqItem key={i} q={item.q} a={item.a} />)}
-            </div>
-          </Reveal>
-          <Reveal>
-            <div style={{ textAlign: 'center', marginTop: 40 }}>
-              <p style={{ fontSize: '.95rem', color: 'var(--text)', marginBottom: 16 }}>¿No encuentras tu respuesta?</p>
-              <a href="https://wa.me/34629358562" target="_blank" rel="noopener noreferrer" className="btn btn--outline btn--sm">Escríbenos por WhatsApp</a>
-            </div>
+            <div className="faq">{FAQ_DATA.map((item, i) => <FaqItem key={i} q={item.q} a={item.a} index={i} />)}</div>
           </Reveal>
         </div>
       </section>
@@ -1030,33 +990,17 @@ export default function Home() {
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2997.4!2d1.9795!3d41.2795!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12a49d43e5f2b3a7%3A0x4b3f3f3f3f3f3f3f!2sCanal%20Ol%C3%ADmpic%20de%20Catalunya!5e0!3m2!1ses!2ses!4v1700000000000"
                   width="100%" height="400" style={{ border: 0, borderRadius: 'var(--radius)' }}
                   allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-                  title="Ubicación Canal Olímpico"
-                />
+                  title="Ubicación Canal Olímpico" />
               </div>
               <div className="map-contact__info">
                 <div className="map-contact__card">
                   <h3>Restaurante Canal Olímpico</h3>
-                  <div className="map-contact__row">
-                    <Icon.MapPin />
-                    <p>Av. del Canal Olímpic, 2<br />08860 Castelldefels, Barcelona</p>
-                  </div>
-                  <div className="map-contact__row">
-                    <Icon.Clock />
-                    <div>
-                      <p><strong>L-V:</strong> 8:00 – 18:00</p>
-                      <p><strong>S-D:</strong> 9:00 – 18:00</p>
-                    </div>
-                  </div>
-                  <div className="map-contact__row">
-                    <Icon.Phone />
-                    <div>
-                      <p><a href="tel:938587088">938 58 70 88</a></p>
-                      <p><a href="tel:629358562">629 35 85 62</a></p>
-                    </div>
-                  </div>
+                  <div className="map-contact__row"><Icon.MapPin /><p>Av. del Canal Olímpic, 2<br />08860 Castelldefels, Barcelona</p></div>
+                  <div className="map-contact__row"><Icon.Clock /><div><p><strong>L-V:</strong> 8:00 – 18:00</p><p><strong>S-D:</strong> 9:00 – 18:00</p></div></div>
+                  <div className="map-contact__row"><Icon.Phone /><div><p><a href="tel:938587088">938 58 70 88</a></p><p><a href="tel:629358562">629 35 85 62</a></p></div></div>
+                  <div className="map-contact__row"><Icon.Mail /><p><a href="mailto:canalolimpic@daliagrup.com">canalolimpic@daliagrup.com</a></p></div>
                   <div className="map-contact__actions">
-                    <button className="btn btn--gold" onClick={() => scrollTo('reservar')}>Reservar online</button>
-                    <a href="https://wa.me/34629358562" target="_blank" rel="noopener noreferrer" className="btn btn--outline">WhatsApp</a>
+                    <button className="btn btn--primary" onClick={() => scrollTo('reservar')}>Reservar online</button>
                   </div>
                 </div>
               </div>
@@ -1073,33 +1017,42 @@ export default function Home() {
               <h4 className="foot__brand">CANAL OLÍMPICO</h4>
               <p className="foot__tagline">Restaurante · Terraza · Eventos</p>
               <p>Av. del Canal Olímpic, 2<br />08860 Castelldefels, Barcelona</p>
+              <div className="foot__social">
+                <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><Icon.Instagram /></a>
+                <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" aria-label="Google Maps"><Icon.MapPin /></a>
+              </div>
             </div>
             <div className="foot__col">
               <h4>Horario</h4>
               <p>Lunes a Viernes: 8:00 – 18:00</p>
               <p>Sábados y Domingos: 9:00 – 18:00</p>
+              <p style={{ marginTop: 12 }} className="foot__highlight">📞 Reservas: <a href="tel:629358562">629 35 85 62</a></p>
             </div>
             <div className="foot__col">
-              <h4>Contacto</h4>
-              <p><a href="tel:938587088">938 58 70 88</a></p>
-              <p><a href="tel:629358562">629 35 85 62</a> — Reservas</p>
-              <p><a href="https://wa.me/34629358562" target="_blank" rel="noopener noreferrer">WhatsApp Reservas</a></p>
+              <h4>Legal</h4>
+              <p><Link href="/condiciones">Condiciones de Reserva</Link></p>
+              <p><Link href="/cookies">Política de Cookies</Link></p>
+              <p><a href="mailto:canalolimpic@daliagrup.com">canalolimpic@daliagrup.com</a></p>
+              <div className="foot__badges">
+                <span className="foot__badge"><Icon.Shield /> Pago seguro</span>
+                <span className="foot__badge"><Icon.Check /> SSL</span>
+              </div>
             </div>
           </div>
           <div className="foot__line" />
           <div className="foot__bottom">
-            <p>© {new Date().getFullYear()} Canal Olímpico — Todos los derechos reservados</p>
-            <div className="foot__legal">
-              <Link href="/condiciones" className="foot__legal-link">Condiciones</Link>
-              <span className="foot__legal-sep">·</span>
-              <Link href="/cookies" className="foot__legal-link">Cookies</Link>
-              <span className="foot__legal-sep">·</span>
-              <Link href="/login" className="foot__admin">Panel</Link>
-            </div>
+            <p>© {new Date().getFullYear()} Canal Olímpico · Dalia Grup — Todos los derechos reservados</p>
+            <Link href="/login" className="foot__admin">Panel</Link>
           </div>
         </div>
       </footer>
+
+      {/* ━━━ STICKY MOBILE CTA ━━━ */}
+      <div className={`sticky-cta ${scrolled ? 'sticky-cta--show' : ''}`}>
+        <button className="btn btn--primary btn--lg sticky-cta__btn" onClick={() => scrollTo('reservar')}>
+          🗓️ Reservar Mesa
+        </button>
+      </div>
     </main>
   )
 }
-
