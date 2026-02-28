@@ -987,7 +987,7 @@ export default function Home() {
             <div className="map-contact">
               <div className="map-contact__map">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2997.4!2d1.9795!3d41.2795!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12a49d43e5f2b3a7%3A0x4b3f3f3f3f3f3f3f!2sCanal%20Ol%C3%ADmpic%20de%20Catalunya!5e0!3m2!1ses!2ses!4v1700000000000"
+                  src="https://maps.google.com/maps?q=Canal+Olimpic+de+Catalunya,+Castelldefels,+Barcelona&t=&z=15&ie=UTF8&iwloc=&output=embed"
                   width="100%" height="400" style={{ border: 0, borderRadius: 'var(--radius)' }}
                   allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade"
                   title="Ubicación Canal Olímpico" />
