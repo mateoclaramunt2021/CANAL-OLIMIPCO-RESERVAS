@@ -3,26 +3,71 @@
 // Envía mensajes vía Meta WhatsApp Business API (Cloud API v18.0)
 // Soporta: texto, botones interactivos, listas
 // Guarda historial en tabla "messages" de Supabase
+//
+// Las credenciales se leen primero de Supabase (tabla settings)
+// y si no están, se usa fallback de env vars.
 
 import { supabaseAdmin } from '@/lib/supabase'
 
-// ─── Config ──────────────────────────────────────────────────────────────────
+// ─── Config (Supabase settings → env fallback) ─────────────────────────────
 
-function getConfig() {
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
-  const token = process.env.WHATSAPP_TOKEN
+let cachedConfig: { phoneNumberId: string; token: string } | null = null
+let cacheTime = 0
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
-  if (!phoneNumberId || !token) {
-    return null
+async function getConfig(): Promise<{ phoneNumberId: string; token: string } | null> {
+  // Return cached config if still fresh
+  if (cachedConfig && Date.now() - cacheTime < CACHE_TTL) {
+    return cachedConfig
   }
 
-  return { phoneNumberId, token }
+  try {
+    const { data } = await supabaseAdmin
+      .from('settings')
+      .select('key, value')
+      .in('key', ['WHATSAPP_PHONE_NUMBER_ID', 'WHATSAPP_TOKEN'])
+
+    const settings: Record<string, string> = {}
+    for (const row of data || []) {
+      settings[row.key] = row.value
+    }
+
+    const phoneNumberId = settings.WHATSAPP_PHONE_NUMBER_ID || process.env.WHATSAPP_PHONE_NUMBER_ID
+    const token = settings.WHATSAPP_TOKEN || process.env.WHATSAPP_TOKEN
+
+    if (!phoneNumberId || !token || phoneNumberId === 'dummy_id') {
+      return null
+    }
+
+    cachedConfig = { phoneNumberId, token }
+    cacheTime = Date.now()
+    return cachedConfig
+  } catch {
+    // Fallback to env if Supabase fails
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+    const token = process.env.WHATSAPP_TOKEN
+    if (!phoneNumberId || !token || phoneNumberId === 'dummy_id') return null
+    return { phoneNumberId, token }
+  }
+}
+
+// Export for webhook verification
+export async function getVerifyToken(): Promise<string | null> {
+  try {
+    const { data } = await supabaseAdmin
+      .from('settings')
+      .select('value')
+      .eq('key', 'WHATSAPP_VERIFY_TOKEN')
+      .single()
+    if (data?.value) return data.value
+  } catch { /* ignore */ }
+  return process.env.WHATSAPP_VERIFY_TOKEN || null
 }
 
 // ─── Enviar mensaje de texto ────────────────────────────────────────────────
 
 export async function sendText(to: string, text: string): Promise<{ ok: boolean; error?: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   if (!config) {
     console.warn('[whatsapp] Credentials not configured, skipping send')
     return { ok: false, error: 'WhatsApp no configurado' }
@@ -74,7 +119,7 @@ export async function sendButtons(
   headerText?: string,
   footerText?: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const config = getConfig()
+  const config = await getConfig()
   if (!config) {
     console.warn('[whatsapp] Credentials not configured, skipping send')
     return { ok: false, error: 'WhatsApp no configurado' }

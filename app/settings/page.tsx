@@ -44,10 +44,11 @@ export default function SettingsPage() {
       updateCheck('Stripe', 'error', 'Error comprobando')
     }
 
-    // WhatsApp
+    // WhatsApp — check via API test endpoint
     try {
-      const waToken = process.env.NEXT_PUBLIC_WA_TOKEN
-      updateCheck('WhatsApp', waToken ? 'ok' : 'error', waToken ? 'Token configurado' : 'Configurado en servidor (env)')
+      const waRes = await fetch('/api/settings/whatsapp-test', { method: 'POST' })
+      const waData = await waRes.json()
+      updateCheck('WhatsApp', waData.ok ? 'ok' : 'error', waData.ok ? `Conectado: ${waData.name || waData.phone || 'OK'}` : 'No configurado — Configurar →')
     } catch {
       updateCheck('WhatsApp', 'error', 'Error comprobando')
     }
@@ -107,8 +108,11 @@ export default function SettingsPage() {
             <button onClick={runChecks} className="px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors">🔄 Refrescar</button>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {checks.map(c => (
-              <div key={c.label} className={`p-4 rounded-xl border-2 transition-all ${
+            {checks.map(c => {
+              const isWhatsApp = c.label === 'WhatsApp'
+              const CardTag = isWhatsApp ? 'a' : 'div'
+              return (
+              <CardTag key={c.label} href={isWhatsApp ? '/settings/whatsapp' : undefined} className={`p-4 rounded-xl border-2 transition-all block ${isWhatsApp ? 'cursor-pointer hover:shadow-md' : ''} ${
                 c.status === 'ok' ? 'border-emerald-200 bg-emerald-50/50' :
                 c.status === 'error' ? 'border-red-200 bg-red-50/50' :
                 'border-slate-200 bg-slate-50'
@@ -132,8 +136,9 @@ export default function SettingsPage() {
                     }`}>{c.detail}</p>
                   </div>
                 </div>
-              </div>
-            ))}
+              </CardTag>
+              )
+            })}
           </div>
         </div>
 

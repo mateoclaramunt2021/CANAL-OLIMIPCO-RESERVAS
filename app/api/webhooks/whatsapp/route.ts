@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { handleIncomingMessage } from '@/lib/conversation'
+import { getVerifyToken } from '@/lib/whatsapp'
 
 // ─── GET: Verificación del webhook de Meta ──────────────────────────────────
 // Meta envía un GET para verificar que eres el dueño del webhook.
-// Tú configuras WHATSAPP_VERIFY_TOKEN con un valor secreto.
+// Lee el token de Supabase (settings) con fallback a env var.
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -12,7 +13,9 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get('hub.verify_token')
   const challenge = searchParams.get('hub.challenge')
 
-  if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+  const expectedToken = await getVerifyToken()
+
+  if (mode === 'subscribe' && expectedToken && token === expectedToken) {
     console.log('[whatsapp-webhook] Verification OK')
     return new Response(challenge, { status: 200 })
   }

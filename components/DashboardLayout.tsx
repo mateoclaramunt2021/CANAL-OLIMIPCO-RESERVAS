@@ -19,6 +19,7 @@ const navSections = [
       { href: '/reservations', label: 'Reservas', icon: '📋' },
       { href: '/reservations/new', label: 'Nueva Reserva', icon: '➕' },
       { href: '/tables', label: 'Mesas', icon: '🪑' },
+      { href: '/dashboard/whatsapp', label: 'WhatsApp', icon: '💬' },
     ],
   },
   {
