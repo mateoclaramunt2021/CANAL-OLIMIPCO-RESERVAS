@@ -109,7 +109,7 @@ function emailTemplate(title: string, content: string): string {
             <td style="background-color:#faf9f6;padding:24px 40px;text-align:center;border-top:1px solid #e8e2d6;">
               <p style="color:#8a8578;font-size:13px;margin:0;">
                 📍 Av. del Canal Olímpico 2, Castelldefels<br>
-                📞 938 587 088 · 629 358 562<br>
+                📞 930 347 246<br>
                 📧 canalolimpic@daliagrup.com
               </p>
               <p style="color:#b0a898;font-size:11px;margin:10px 0 0;">
@@ -280,7 +280,7 @@ export async function sendAutoCancel(
       Si deseas hacer una nueva reserva, no dudes en contactarnos:
     </p>
     <p style="color:#1A0F05;font-size:15px;">
-      📞 938 587 088 / 629 358 562<br>
+      📞 930 347 246<br>
       📧 canalolimpic@daliagrup.com
     </p>
   `
@@ -372,7 +372,7 @@ export async function sendReminder(
         <li>Alergias o menús especiales</li>
       </ul>
     </div>
-    <p style="color:#1A0F05;">📞 938 587 088 / 629 358 562</p>
+    <p style="color:#1A0F05;">📞 930 347 246</p>
     ${refDisplay ? cancelBlock(refDisplay) : ''}
   `
 
@@ -424,7 +424,7 @@ export async function sendCancellationConfirmation(
       </a>
     </div>
     <p style="color:#8a8578;font-size:13px;text-align:center;">
-      📞 938 587 088 / 629 358 562 · 📧 canalolimpic@daliagrup.com
+      📞 930 347 246 · 📧 canalolimpic@daliagrup.com
     </p>
   `
 

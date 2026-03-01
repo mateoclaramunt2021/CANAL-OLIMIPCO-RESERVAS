@@ -150,7 +150,7 @@ export async function sendReservationConfirmation(
     `📋 Ref: ${data.reservationId.substring(0, 8)}`,
     ``,
     `📍 Canal Olímpico, Castelldefels`,
-    `📞 938.587.088 / 629.358.562`,
+    `📞 930.347.246`,
     ``,
     `¡Te esperamos! 🎉`,
   ].filter(Boolean).join('\n')
@@ -194,7 +194,7 @@ export async function sendPaymentLink(
     `Si no se realiza el pago, la reserva se cancelará automáticamente.`,
     ``,
     `📌 Ref: ${data.reservationId.substring(0, 8)}`,
-    `📞 Dudas: 938.587.088 / 629.358.562`,
+    `📞 Dudas: 930.347.246`,
   ].join('\n')
 
   await sendText(to, message)
@@ -229,7 +229,7 @@ export async function sendPaymentConfirmation(
     `• Cambios de asistentes 72h antes`,
     ``,
     `📍 Canal Olímpico, Castelldefels`,
-    `📞 938.587.088 / 629.358.562`,
+    `📞 930.347.246`,
     ``,
     `¡Te esperamos! 🎉`,
   ].join('\n')
@@ -254,7 +254,7 @@ export async function sendAutoCancel(
     `Hola ${data.nombre}, tu reserva para el ${formatDateEs(data.fecha)} ha sido cancelada porque no recibimos el pago de la señal dentro del plazo.`,
     ``,
     `Si deseas hacer una nueva reserva, contacta con nosotros:`,
-    `📞 938.587.088 / 629.358.562`,
+    `📞 930.347.246`,
     `📧 iguanacanalolimpic@outlook.com`,
   ].join('\n')
 

@@ -31,7 +31,7 @@ export default function CondicionesPage() {
             el <strong>Restaurante Canal Olímpico</strong>, con domicilio en Av. del Canal Olímpic, 2,
             08860 Castelldefels, Barcelona (España).
           </p>
-          <p>Teléfono de contacto: <a href="tel:938587088">938 58 70 88</a> / <a href="tel:629358562">629 35 85 62</a></p>
+          <p>Teléfono de contacto: <a href="tel:930347246">930 34 72 46</a></p>
         </section>
 
         <section className="legal__section">

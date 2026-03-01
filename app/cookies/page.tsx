@@ -131,8 +131,7 @@ export default function CookiesPage() {
             Si tienes dudas sobre nuestra política de cookies, puedes contactarnos en:
           </p>
           <ul>
-            <li>Teléfono: <a href="tel:938587088">938 58 70 88</a></li>
-            <li>Teléfono Reservas: <a href="tel:629358562">629 35 85 62</a></li>
+            <li>Teléfono: <a href="tel:930347246">930 34 72 46</a></li>
             <li>Dirección: Av. del Canal Olímpic, 2, 08860 Castelldefels, Barcelona</li>
           </ul>
         </section>

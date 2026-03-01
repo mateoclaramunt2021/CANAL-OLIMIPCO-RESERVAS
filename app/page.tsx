@@ -810,7 +810,7 @@ export default function Home() {
                 <div className="info-item__icon"><Icon.Phone /></div>
                 <div>
                   <h4>Reservas</h4>
-                  <p><a href="tel:938587088">938 58 70 88</a><br /><a href="tel:629358562">629 35 85 62</a></p>
+                  <p><a href="tel:930347246">930 34 72 46</a></p>
                 </div>
               </div>
             </div>
@@ -893,7 +893,7 @@ export default function Home() {
             <p className="cta-banner__sub">Cumpleaños, comuniones, comidas de empresa, fiestas privadas — reserva tu evento en 2 minutos.</p>
             <div className="cta-banner__btns">
               <button className="btn btn--primary btn--hero" onClick={() => scrollTo('reservar')}>Reservar evento →</button>
-              <a href="tel:629358562" className="btn btn--glass btn--hero">📞 629 35 85 62</a>
+              <a href="tel:930347246" className="btn btn--glass btn--hero">📞 930 34 72 46</a>
             </div>
           </Reveal>
         </div>
@@ -1005,7 +1005,7 @@ export default function Home() {
                   <h3>Restaurante Canal Olímpico</h3>
                   <div className="map-contact__row"><Icon.MapPin /><p>Av. del Canal Olímpic, 2<br />08860 Castelldefels, Barcelona</p></div>
                   <div className="map-contact__row"><Icon.Clock /><div><p><strong>L-V:</strong> 8:00 – 18:00</p><p><strong>S-D:</strong> 9:00 – 18:00</p></div></div>
-                  <div className="map-contact__row"><Icon.Phone /><div><p><a href="tel:938587088">938 58 70 88</a></p><p><a href="tel:629358562">629 35 85 62</a></p></div></div>
+                  <div className="map-contact__row"><Icon.Phone /><div><p><a href="tel:930347246">930 34 72 46</a></p></div></div>
                   <div className="map-contact__row"><Icon.Mail /><p><a href="mailto:canalolimpic@daliagrup.com">canalolimpic@daliagrup.com</a></p></div>
                   <div className="map-contact__actions">
                     <button className="btn btn--primary" onClick={() => scrollTo('reservar')}>Reservar online</button>
@@ -1034,7 +1034,7 @@ export default function Home() {
               <h4>Horario</h4>
               <p>Lunes a Viernes: 8:00 – 18:00</p>
               <p>Sábados y Domingos: 9:00 – 18:00</p>
-              <p style={{ marginTop: 12 }} className="foot__highlight">📞 Reservas: <a href="tel:629358562">629 35 85 62</a></p>
+              <p style={{ marginTop: 12 }} className="foot__highlight">📞 Reservas: <a href="tel:930347246">930 34 72 46</a></p>
             </div>
             <div className="foot__col">
               <h4>Legal</h4>

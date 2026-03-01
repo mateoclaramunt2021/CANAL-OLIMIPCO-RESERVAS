@@ -158,7 +158,7 @@ async function handleElegirAccion(phone: string, message: string, state: Convers
   // Si llega "humano" o "persona"
   if (msg.includes('humano') || msg.includes('persona') || msg.includes('hablar')) {
     await deleteState(phone)
-    await sendText(phone, '📞 Para hablar con una persona, llama a:\n\n*938.587.088* o *629.358.562*\n\nO escribe a: iguanacanalolimpic@outlook.com')
+    await sendText(phone, '📞 Para hablar con una persona, llama a:\n\n*930.347.246*\n\nO escribe a: iguanacanalolimpic@outlook.com')
     return
   }
 
@@ -293,7 +293,7 @@ async function handlePedirPersonas(phone: string, message: string, state: Conver
     // Para eventos → preguntar menú
     const menus = getMenusForEvent(state.data.event_type)
     if (menus.length === 0) {
-      await sendText(phone, '❌ Error interno: no hay menús para este tipo de evento. Contacta con 938.587.088')
+      await sendText(phone, '❌ Error interno: no hay menús para este tipo de evento. Contacta con 930.347.246')
       await deleteState(phone)
       return
     }
@@ -341,7 +341,7 @@ async function handlePedirMenu(phone: string, message: string, state: Conversati
   // Mostrar resumen del menú elegido
   const quote = calculateQuote(selectedMenu.code, state.data.personas)
   if ('error' in quote) {
-    await sendText(phone, '❌ Error calculando precio. Contacta con 938.587.088')
+    await sendText(phone, '❌ Error calculando precio. Contacta con 930.347.246')
     return
   }
 
@@ -453,7 +453,7 @@ async function handleConfirmar(phone: string, message: string, state: Conversati
 
   } catch (err) {
     console.error('[conversation] Error creating reservation:', err)
-    await sendText(phone, '❌ Error al procesar la reserva. Por favor llama al 938.587.088')
+    await sendText(phone, '❌ Error al procesar la reserva. Por favor llama al 930.347.246')
     await deleteState(phone)
   }
 }
@@ -477,13 +477,13 @@ async function handleConsultarFecha(phone: string, message: string, state: Conve
       await sendText(phone,
         `📅 Disponibilidad para el ${formatDateEs(fecha)}:\n\n` +
         `🪑 Mesas libres (mediodía): ${data.libres}/${data.total}\n\n` +
-        `Para más detalle, indica una *hora concreta* o llama al 938.587.088`
+        `Para más detalle, indica una *hora concreta* o llama al 930.347.246`
       )
     } else {
-      await sendText(phone, '❌ No se pudo consultar. Intenta más tarde o llama al 938.587.088')
+      await sendText(phone, '❌ No se pudo consultar. Intenta más tarde o llama al 930.347.246')
     }
   } catch {
-    await sendText(phone, '❌ Error al consultar. Llama al 938.587.088')
+    await sendText(phone, '❌ Error al consultar. Llama al 930.347.246')
   }
 
   await deleteState(phone)
@@ -501,7 +501,7 @@ async function handleCancelarRef(phone: string, message: string, state: Conversa
 
   await sendText(phone,
     `Para cancelar la reserva *${ref}*, por favor contacta directamente:\n\n` +
-    `📞 *938.587.088* o *629.358.562*\n` +
+    `📞 *930.347.246*\n` +
     `📧 iguanacanalolimpic@outlook.com\n\n` +
     `📌 Recuerda: la cancelación debe comunicarse con 72h de antelación.`
   )
