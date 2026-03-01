@@ -225,9 +225,35 @@ export async function sendPaymentConfirmation(
     deposit: number
     reservationId: string
     reservationNumber?: string | null
+    menuCode?: string | null
+    dishSelectionToken?: string | null
   }
 ): Promise<void> {
   const refDisplay = data.reservationNumber || data.reservationId.substring(0, 8)
+
+  // Check if this menu requires dish selection
+  const needsDishSelection = data.menuCode && data.dishSelectionToken &&
+    ['menu_grupo_34', 'menu_grupo_29', 'menu_infantil'].includes(data.menuCode)
+
+  const dishSelectionBlock = needsDishSelection ? `
+    <div style="background:linear-gradient(135deg,#fef9f0,#fff7ed);border-radius:10px;padding:20px;margin:20px 0;border:2px solid #B08D57;">
+      <h3 style="color:#B08D57;margin:0 0 12px;font-size:18px;">🍽️ ¡Elige los platos para tu evento!</h3>
+      <p style="color:#1A0F05;font-size:14px;margin:0 0 15px;">
+        Cada comensal debe elegir sus platos del menú. Puedes ir rellenándolo poco a poco 
+        y guardar borrador. <strong>Tenéis hasta 5 días antes del evento</strong> para completarlo.
+      </p>
+      <div style="text-align:center;">
+        <a href="${SITE_URL}/elegir-platos/${data.dishSelectionToken}" 
+           style="background:linear-gradient(135deg,#B08D57,#C4724E);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;display:inline-block;">
+          🍽️ Elegir platos (${data.personas} comensales)
+        </a>
+      </div>
+      <p style="color:#8a8578;font-size:12px;text-align:center;margin:12px 0 0;">
+        También puedes acceder más tarde desde este mismo enlace.
+      </p>
+    </div>
+  ` : ''
+
   const content = `
     <h2 style="color:#6b9080;margin:0 0 20px;">✅ ¡Pago Recibido — Reserva Confirmada!</h2>
     <p style="color:#1A0F05;font-size:16px;margin:0 0 20px;">
@@ -242,10 +268,11 @@ export async function sendPaymentConfirmation(
         <p style="margin:8px 0 4px;color:#B08D57;font-size:16px;">📋 <strong>Nº Reserva: ${refDisplay}</strong></p>
       </td></tr>
     </table>
+    ${dishSelectionBlock}
     <div style="background-color:#fef9f0;border-radius:8px;padding:16px;margin:0 0 20px;border:1px solid #e8d5b2;">
       <p style="color:#92681e;font-size:14px;margin:0;"><strong>📌 Recuerda:</strong></p>
       <ul style="color:#92681e;font-size:14px;margin:8px 0 0;padding-left:20px;">
-        <li>Confirmar platos y asistentes 5 días antes</li>
+        ${needsDishSelection ? '<li><strong>Seleccionar los platos de cada comensal</strong></li>' : '<li>Confirmar platos y asistentes 5 días antes</li>'}
         <li>Comunicar alergias 72h antes</li>
         <li>Cambios de asistentes 72h antes</li>
       </ul>
@@ -395,6 +422,98 @@ export async function sendReminder(
 
   const content = isEvent ? eventContent : normalContent
   await sendEmail(to, '📌 Recordatorio — Canal Olímpico', emailTemplate('Recordatorio', content))
+}
+
+// ─── Enviar confirmación cuando el cliente completa la selección de platos ──
+
+export async function sendDishSelectionConfirmation(
+  to: string,
+  data: {
+    nombre: string
+    fecha: string
+    personas: number
+    reservationNumber: string
+    summaryHtml: string
+  }
+): Promise<void> {
+  const content = `
+    <h2 style="color:#6b9080;margin:0 0 20px;">🍽️ ¡Selección de Platos Confirmada!</h2>
+    <p style="color:#1A0F05;font-size:16px;margin:0 0 20px;">
+      Hola <strong>${data.nombre}</strong>, hemos recibido la selección de platos de los 
+      <strong>${data.personas}</strong> comensales para tu evento del <strong>${formatDateEs(data.fecha)}</strong>.
+    </p>
+    <div style="background-color:#f0fdf4;border-radius:8px;padding:16px;margin:0 0 20px;border:1px solid #86efac;">
+      <p style="color:#166534;font-size:14px;margin:0;">
+        ✅ El restaurante ya tiene tu selección. Si necesitas modificar algo, contacta antes de las 72h previas al evento.
+      </p>
+    </div>
+    <p style="color:#1A0F05;font-size:15px;">¡Te esperamos! 🎉</p>
+    <p style="color:#8a8578;font-size:13px;">📞 930 347 246 · 📧 canalolimpic@daliagrup.com</p>
+    ${cancelBlock(data.reservationNumber)}
+  `
+
+  await sendEmail(to, `🍽️ Platos Confirmados — ${data.reservationNumber} — Canal Olímpico`, emailTemplate('Platos Confirmados', content))
+}
+
+// ─── Enviar resumen de platos al restaurante ────────────────────────────────
+
+export async function sendDishSummaryToRestaurant(
+  data: {
+    reservationNumber: string
+    customerName: string
+    fecha: string
+    personas: number
+    summaryHtml: string
+  }
+): Promise<void> {
+  const fechaCorta = formatDateEs(data.fecha).split(' de ').slice(0, 2).join(' ')
+  const content = `
+    ${data.summaryHtml}
+    <p style="color:#8a8578;font-size:13px;margin:20px 0 0;">Selección automática del sistema de reservas.</p>
+  `
+
+  await sendEmail(
+    RESTAURANT_EMAIL,
+    `🍽️ ${data.reservationNumber} — Platos · ${data.customerName} · ${fechaCorta} · ${data.personas} pax`,
+    emailTemplate('Selección de Platos', content)
+  )
+}
+
+// ─── Enviar recordatorio de selección de platos pendiente ───────────────────
+
+export async function sendDishSelectionReminder(
+  to: string,
+  data: {
+    nombre: string
+    fecha: string
+    personas: number
+    reservationNumber: string
+    dishSelectionToken: string
+  }
+): Promise<void> {
+  const content = `
+    <h2 style="color:#B08D57;margin:0 0 20px;">🍽️ Recordatorio — Selección de Platos Pendiente</h2>
+    <p style="color:#1A0F05;font-size:16px;margin:0 0 20px;">
+      Hola <strong>${data.nombre}</strong>, te recordamos que aún no has completado la selección de platos 
+      para tu evento del <strong>${formatDateEs(data.fecha)}</strong> (${data.personas} comensales).
+    </p>
+    <div style="background-color:#fef9f0;border-radius:8px;padding:16px;margin:0 0 20px;border:1px solid #e8d5b2;">
+      <p style="color:#92681e;font-size:14px;margin:0;">
+        ⏰ <strong>Es importante completar la selección lo antes posible</strong> para que el restaurante 
+        pueda preparar tu evento correctamente.
+      </p>
+    </div>
+    <div style="text-align:center;margin:25px 0;">
+      <a href="${SITE_URL}/elegir-platos/${data.dishSelectionToken}" 
+         style="background:linear-gradient(135deg,#B08D57,#C4724E);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:16px;font-weight:600;display:inline-block;">
+        🍽️ Elegir platos ahora
+      </a>
+    </div>
+    <p style="color:#8a8578;font-size:13px;text-align:center;">📞 930 347 246 · 📧 canalolimpic@daliagrup.com</p>
+    ${cancelBlock(data.reservationNumber)}
+  `
+
+  await sendEmail(to, `🍽️ Recordatorio Platos — ${data.reservationNumber} — Canal Olímpico`, emailTemplate('Selección Pendiente', content))
 }
 
 // ─── Enviar confirmación de cancelación al cliente ──────────────────────────

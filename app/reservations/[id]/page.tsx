@@ -30,6 +30,8 @@ interface Reservation {
   messages: any[]
   call_logs: any[]
   payments: any[]
+  dishes_status: string | null
+  dish_selection_token: string | null
 }
 
 const statusColors: Record<string, string> = {
@@ -82,9 +84,14 @@ export default function ReservationDetail() {
   const [sendingWA, setSendingWA] = useState(false)
   const [calling, setCalling] = useState(false)
   const [actionFeedback, setActionFeedback] = useState('')
+  const [dishSelections, setDishSelections] = useState<any[]>([])
+  const [dishSummary, setDishSummary] = useState<any>(null)
 
   useEffect(() => {
-    if (id) fetchReservation()
+    if (id) {
+      fetchReservation()
+      fetchDishSelections()
+    }
   }, [id])
 
   const fetchReservation = async () => {
@@ -100,6 +107,18 @@ export default function ReservationDetail() {
       setReservation(null)
     }
     setLoading(false)
+  }
+
+  const fetchDishSelections = async () => {
+    try {
+      const res = await fetch(`/api/menu-selection/summary?reservation_id=${id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDishSummary(data)
+      }
+    } catch {
+      // No dish selections yet — OK
+    }
   }
 
   const sendWhatsApp = async () => {
@@ -294,6 +313,61 @@ export default function ReservationDetail() {
                 ))}
               </div>
             </div>
+
+            {/* Dish Selection Status */}
+            {reservation.menu_code && ['menu_grupo_34', 'menu_grupo_29', 'menu_infantil'].includes(reservation.menu_code) && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                <h2 className="text-lg font-semibold text-slate-900 mb-4">
+                  🍽️ Selección de Platos
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    reservation.dishes_status === 'completed'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {reservation.dishes_status === 'completed' ? 'Completada' : 'Pendiente'}
+                  </span>
+                </h2>
+                
+                {reservation.dish_selection_token && reservation.dishes_status !== 'completed' && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                    <p className="text-sm text-blue-700 mb-2">
+                      <strong>Enlace de selección para el cliente:</strong>
+                    </p>
+                    <a 
+                      href={`/elegir-platos/${reservation.dish_selection_token}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 underline break-all"
+                    >
+                      {typeof window !== 'undefined' ? window.location.origin : ''}/elegir-platos/{reservation.dish_selection_token}
+                    </a>
+                  </div>
+                )}
+
+                {dishSummary ? (
+                  <div>
+                    <div className="text-sm text-slate-600 mb-3">
+                      {dishSummary.summary.total_selections} de {reservation.personas} comensales han elegido
+                    </div>
+                    {dishSummary.summary.allergies.length > 0 && (
+                      <div className="p-3 bg-red-50 rounded-xl border border-red-200 mb-3">
+                        <p className="text-xs font-bold text-red-600 mb-1">⚠️ ALERGIAS</p>
+                        {dishSummary.summary.allergies.map((a: string, i: number) => (
+                          <p key={i} className="text-xs text-red-700">• {a}</p>
+                        ))}
+                      </div>
+                    )}
+                    <div dangerouslySetInnerHTML={{ __html: dishSummary.html }} className="text-sm" />
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400 text-center py-4">
+                    {reservation.dishes_status === 'completed'
+                      ? 'No se encontraron datos de selección'
+                      : 'El cliente aún no ha comenzado la selección'}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Messages */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">

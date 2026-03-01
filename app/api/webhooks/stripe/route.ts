@@ -4,6 +4,8 @@ import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
 import { sendPaymentConfirmation } from '@/lib/email'
 import { notifyPaymentReceived } from '@/lib/telegram'
+import { sendText } from '@/lib/whatsapp'
+import { menuRequiresSelection } from '@/core/menus'
 
 // ─── POST: Webhook de Stripe ────────────────────────────────────────────────
 // Cuando el cliente paga la señal del 40%, Stripe nos avisa aquí.
@@ -76,6 +78,9 @@ export async function POST(req: NextRequest) {
             personas: reservation.personas,
             deposit: session.amount_total! / 100,
             reservationId: reservationId,
+            reservationNumber: reservation.reservation_number,
+            menuCode: reservation.menu_code,
+            dishSelectionToken: reservation.dish_selection_token,
           })
         }
 
@@ -88,6 +93,27 @@ export async function POST(req: NextRequest) {
           fecha: reservation?.fecha || '',
           amount: session.amount_total! / 100,
         }).catch(err => console.error('[stripe-webhook] Telegram error:', err))
+
+        // 5. WhatsApp: send dish selection link if menu requires it
+        if (reservation && reservation.customer_phone && reservation.menu_code &&
+            menuRequiresSelection(reservation.menu_code) && reservation.dish_selection_token) {
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://reservascanalolimpico.netlify.app'
+          const selectionUrl = `${siteUrl}/elegir-platos/${reservation.dish_selection_token}`
+          const whatsappMsg = [
+            `✅ ¡Pago recibido! Tu reserva ${reservation.reservation_number || ''} está confirmada.`,
+            ``,
+            `🍽️ *Siguiente paso: elige los platos*`,
+            `Cada comensal debe elegir su menú (${reservation.personas} personas).`,
+            ``,
+            `👉 ${selectionUrl}`,
+            ``,
+            `Puedes ir rellenándolo poco a poco y guardar borrador.`,
+            `📞 930 347 246`,
+          ].join('\n')
+
+          sendText(reservation.customer_phone, whatsappMsg)
+            .catch(err => console.error('[stripe-webhook] WhatsApp dish selection error:', err))
+        }
       } catch (err) {
         console.error('[stripe-webhook] Error processing payment:', err)
       }

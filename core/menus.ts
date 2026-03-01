@@ -110,6 +110,77 @@ export const MENUS: MenuItem[] = [
   },
 ]
 
+// ─── Opciones de platos por menú (para selección de comensales) ─────────────
+
+export interface DishOption {
+  id: string       // Identificador único: 'solomillo', 'bacalao', etc.
+  name: string     // Nombre para mostrar
+}
+
+export interface MenuCourseChoices {
+  first_course?: DishOption[]   // Primer plato (si hay elección)
+  second_course?: DishOption[]  // Segundo plato
+  dessert?: DishOption[]        // Postre
+}
+
+/** Mapa de menú → opciones de platos a elegir por comensal */
+export const MENU_CHOICES: Record<string, MenuCourseChoices> = {
+  menu_grupo_34: {
+    // No tiene primer plato a elegir (compartir)
+    second_course: [
+      { id: 'solomillo_pimienta', name: 'Solomillo de cerdo a la pimienta' },
+      { id: 'bacalao_setas', name: 'Bacalao con cremoso de setas' },
+      { id: 'parrillada_verduras', name: 'Parrillada de verduras' },
+    ],
+    dessert: [
+      { id: 'tarta', name: 'Tarta' },
+      { id: 'helado', name: 'Helado' },
+    ],
+  },
+  menu_grupo_29: {
+    first_course: [
+      { id: 'rigatoni_tomate', name: 'Rigatoni con crema suave de tomate' },
+      { id: 'ensalada_cabra', name: 'Ensalada de queso de cabra con frutos rojos' },
+    ],
+    second_course: [
+      { id: 'solomillo_pimienta', name: 'Solomillo a la pimienta verde' },
+      { id: 'lubina_horno', name: 'Lubina al horno con patata panadera' },
+      { id: 'parrillada_verduras', name: 'Parrillada de verduras' },
+    ],
+    dessert: [
+      { id: 'sorbete_limon', name: 'Sorbete de limón al cava' },
+      { id: 'macedonia', name: 'Macedonia de frutas' },
+    ],
+  },
+  menu_infantil: {
+    // Solo segundo y postre a elegir
+    second_course: [
+      { id: 'macarrones', name: 'Macarrones tomate' },
+      { id: 'hamburguesa', name: 'Hamburguesa con patatas' },
+      { id: 'fingers_pollo', name: 'Fingers de pollo' },
+      { id: 'canelones', name: 'Canelones' },
+    ],
+    dessert: [
+      { id: 'tarta', name: 'Tarta' },
+      { id: 'helado', name: 'Helado' },
+      { id: 'yogur', name: 'Yogur' },
+    ],
+  },
+  // Pica-Pica: NO requiere selección (todo compartido)
+  // menu_pica_34: sin opciones
+  // menu_pica_30: sin opciones
+}
+
+/** Verificar si un menú requiere selección de platos */
+export function menuRequiresSelection(menuCode: string): boolean {
+  return menuCode in MENU_CHOICES
+}
+
+/** Obtener las opciones de platos de un menú */
+export function getMenuChoices(menuCode: string): MenuCourseChoices | null {
+  return MENU_CHOICES[menuCode] || null
+}
+
 // ─── Menú de padres (para acompañantes adultos en cumpleaños infantil) ───────
 
 export const MENU_PADRES: MenuItem = {

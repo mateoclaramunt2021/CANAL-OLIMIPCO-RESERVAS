@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { sendAutoCancel, sendReminder } from '@/lib/email'
+import { sendAutoCancel, sendReminder, sendDishSelectionReminder } from '@/lib/email'
 import { PAYMENT_DEADLINE_DAYS } from '@/core/menus'
 import { notifyAutoCancel, notifyReminderSent } from '@/lib/telegram'
 
@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
   const results = {
     expired_cancelled: 0,
     reminders_sent: 0,
+    dish_reminders_sent: 0,
     errors: [] as string[],
   }
 
@@ -93,6 +94,38 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         results.errors.push(`Error reminding ${res.id}: ${String(err)}`)
+      }
+    }
+
+    // ── 3. Recordatorio selección de platos (48h después de pagar sin completar) ──
+    const twoDaysAgo = new Date()
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
+
+    const { data: pendingDishes } = await supabaseAdmin
+      .from('reservations')
+      .select('id, customer_name, customer_email, customer_phone, fecha, personas, reservation_number, dish_selection_token, dishes_status, menu_code')
+      .eq('status', 'CONFIRMED')
+      .eq('dishes_status', 'pending')
+      .not('dish_selection_token', 'is', null)
+      .not('menu_code', 'is', null)
+      .in('menu_code', ['menu_grupo_34', 'menu_grupo_29', 'menu_infantil'])
+
+    for (const res of (pendingDishes ?? [])) {
+      try {
+        // Check if more than 48h since confirmed (payment received)
+        // We use the fact that dishes_status was set to 'pending' at confirmation time
+        if (res.customer_email && res.dish_selection_token && res.reservation_number) {
+          await sendDishSelectionReminder(res.customer_email, {
+            nombre: res.customer_name || 'Cliente',
+            fecha: res.fecha,
+            personas: res.personas || 0,
+            reservationNumber: res.reservation_number,
+            dishSelectionToken: res.dish_selection_token,
+          })
+          results.dish_reminders_sent++
+        }
+      } catch (err) {
+        results.errors.push(`Error dish reminder ${res.id}: ${String(err)}`)
       }
     }
   } catch (err) {
