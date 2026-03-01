@@ -346,8 +346,20 @@ export default function ReservationDetail() {
 
                 {dishSummary ? (
                   <div>
-                    <div className="text-sm text-slate-600 mb-3">
-                      {dishSummary.summary.total_selections} de {reservation.personas} comensales han elegido
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-sm text-slate-600">
+                        {dishSummary.summary.total_selections} de {reservation.personas} comensales han elegido
+                      </div>
+                      {reservation.dishes_status === 'completed' && (
+                        <a
+                          href={`/api/menu-selection/pdf?reservation_id=${reservation.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#B08D57] text-white text-xs font-semibold rounded-lg hover:bg-[#9a7a4a] transition-colors shadow-sm"
+                        >
+                          📄 Descargar PDF
+                        </a>
+                      )}
                     </div>
                     {dishSummary.summary.allergies.length > 0 && (
                       <div className="p-3 bg-red-50 rounded-xl border border-red-200 mb-3">

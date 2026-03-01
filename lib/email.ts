@@ -29,7 +29,12 @@ function getTransporter() {
 
 // ─── Helper: Enviar email ───────────────────────────────────────────────────
 
-async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: { filename: string; content: Buffer }[]
+): Promise<{ ok: boolean; error?: string }> {
   const transporter = getTransporter()
   if (!transporter) {
     return { ok: false, error: 'Email no configurado' }
@@ -42,6 +47,11 @@ async function sendEmail(to: string, subject: string, html: string): Promise<{ o
       bcc: RESTAURANT_EMAIL !== to ? RESTAURANT_EMAIL : undefined,
       subject,
       html,
+      attachments: attachments?.map(a => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: 'application/pdf',
+      })),
     })
     console.log(`[email] Email enviado a ${to} (bcc: ${RESTAURANT_EMAIL}): ${subject}`)
     return { ok: true }
@@ -459,6 +469,7 @@ export async function sendDishSelectionConfirmation(
 
 export async function sendDishSummaryToRestaurant(
   data: {
+    reservationId: string
     reservationNumber: string
     customerName: string
     fecha: string
@@ -469,13 +480,32 @@ export async function sendDishSummaryToRestaurant(
   const fechaCorta = formatDateEs(data.fecha).split(' de ').slice(0, 2).join(' ')
   const content = `
     ${data.summaryHtml}
-    <p style="color:#8a8578;font-size:13px;margin:20px 0 0;">Selección automática del sistema de reservas.</p>
+    <p style="color:#8a8578;font-size:13px;margin:20px 0 0;">📎 PDF adjunto para imprimir en cocina.</p>
+    <p style="color:#8a8578;font-size:13px;margin:4px 0 0;">Selección automática del sistema de reservas.</p>
   `
+
+  // Generate PDF attachment
+  let attachments: { filename: string; content: Buffer }[] | undefined
+  try {
+    const { generateDishPdf } = await import('@/lib/pdf-generator')
+    const pdfBuffer = await generateDishPdf(data.reservationId)
+    if (pdfBuffer) {
+      attachments = [{
+        filename: `platos-${data.reservationNumber}.pdf`,
+        content: pdfBuffer,
+      }]
+      console.log(`[email] PDF generado para ${data.reservationNumber} (${pdfBuffer.length} bytes)`)
+    }
+  } catch (err) {
+    console.error('[email] Error generando PDF adjunto:', err)
+    // Continuamos sin PDF — el email HTML sigue sirviendo
+  }
 
   await sendEmail(
     RESTAURANT_EMAIL,
     `🍽️ ${data.reservationNumber} — Platos · ${data.customerName} · ${fechaCorta} · ${data.personas} pax`,
-    emailTemplate('Selección de Platos', content)
+    emailTemplate('Selección de Platos', content),
+    attachments
   )
 }
 

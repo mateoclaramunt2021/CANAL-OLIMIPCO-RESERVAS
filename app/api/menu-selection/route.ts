@@ -203,6 +203,7 @@ export async function POST(req: NextRequest) {
         const summaryData = await generateDishSummary(reservation.id)
         if (summaryData) {
           await sendDishSummaryToRestaurant({
+            reservationId: reservation.id,
             reservationNumber: reservation.reservation_number || reservation.id.substring(0, 8),
             customerName: reservation.customer_name || 'Cliente',
             fecha: reservation.fecha,
