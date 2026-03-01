@@ -1,21 +1,25 @@
 // ─── Generador de PDF de selección de platos ─────────────────────────────────
 //
-// Usa pdfkit para generar un PDF limpio y profesional para imprimir en cocina.
+// Usa pdf-lib (100% JS, sin dependencias de archivos) para generar un PDF
+// limpio y profesional para imprimir en cocina.
 // Se usa en: API /api/menu-selection/pdf y como adjunto en email al restaurante.
 
-import PDFDocument from 'pdfkit'
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from 'pdf-lib'
 import { supabaseAdmin } from '@/lib/supabase'
 import { findMenu, getMenuChoices } from '@/core/menus'
 
-// ─── Colores de marca ────────────────────────────────────────────────────────
-const DORADO: [number, number, number] = [176, 141, 87]    // #B08D57
-const TERRACOTA: [number, number, number] = [196, 114, 78] // #C4724E
-const INK: [number, number, number] = [26, 15, 5]          // #1A0F05
-const GRIS: [number, number, number] = [120, 120, 120]
-const ROJO: [number, number, number] = [192, 57, 43]       // #c0392b
-const VERDE: [number, number, number] = [107, 144, 128]    // #6b9080
-const WHITE: [number, number, number] = [255, 255, 255]
-const BG_LIGHT: [number, number, number] = [245, 243, 238] // #f5f3ee
+// ─── Colores de marca (valores 0-1 para pdf-lib) ────────────────────────────
+const DORADO = rgb(176 / 255, 141 / 255, 87 / 255)
+const TERRACOTA = rgb(196 / 255, 114 / 255, 78 / 255)
+const INK = rgb(26 / 255, 15 / 255, 5 / 255)
+const GRIS = rgb(120 / 255, 120 / 255, 120 / 255)
+const ROJO = rgb(192 / 255, 57 / 255, 43 / 255)
+const VERDE = rgb(107 / 255, 144 / 255, 128 / 255)
+const WHITE = rgb(1, 1, 1)
+const BG_LIGHT = rgb(245 / 255, 243 / 255, 238 / 255)
+const BG_RED = rgb(254 / 255, 242 / 255, 242 / 255)
+const BORDER_RED = rgb(252 / 255, 165 / 255, 165 / 255)
+const LINE_COLOR = rgb(232 / 255, 226 / 255, 214 / 255)
 
 export async function generateDishPdf(reservationId: string): Promise<Buffer | null> {
   // ── Fetch data ──
@@ -80,245 +84,293 @@ export async function generateDishPdf(reservationId: string): Promise<Buffer | n
     }
   }
 
-  // ── Create PDF ──
-  return new Promise<Buffer>((resolve, reject) => {
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: { top: 40, bottom: 40, left: 50, right: 50 },
-      info: {
-        Title: `Platos — ${refDisplay}`,
-        Author: 'Canal Olímpico',
-        Subject: `Selección de platos para reserva ${refDisplay}`,
-      },
+  // ── Create PDF with pdf-lib ──
+  const doc = await PDFDocument.create()
+  doc.setTitle(`Platos - ${refDisplay}`)
+  doc.setAuthor('Canal Olimpico')
+  doc.setSubject(`Seleccion de platos para reserva ${refDisplay}`)
+
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica)
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold)
+
+  const A4_W = 595.28
+  const A4_H = 841.89
+  const MARGIN = 50
+  const pageW = A4_W - MARGIN * 2
+
+  let page = doc.addPage([A4_W, A4_H])
+  let curY = A4_H - 40 // Start from top (pdf-lib y=0 is bottom)
+
+  // ── Helper: truncate text to fit width ──
+  const truncate = (text: string, font: PDFFont, size: number, maxW: number): string => {
+    if (font.widthOfTextAtSize(text, size) <= maxW) return text
+    let t = text
+    while (t.length > 0 && font.widthOfTextAtSize(t + '...', size) > maxW) {
+      t = t.slice(0, -1)
+    }
+    return t + '...'
+  }
+
+  // ── Helper: check page space, add new page if needed ──
+  const ensureSpace = (needed: number) => {
+    if (curY - needed < 40) {
+      page = doc.addPage([A4_W, A4_H])
+      curY = A4_H - 40
+    }
+  }
+
+  // ╔══════════════════════════════════════════════════════════════════════╗
+  // ║  HEADER                                                             ║
+  // ╚══════════════════════════════════════════════════════════════════════╝
+  const titleText = 'Canal Olimpico'
+  const titleW = fontBold.widthOfTextAtSize(titleText, 22)
+  page.drawText(titleText, {
+    x: MARGIN + (pageW - titleW) / 2,
+    y: curY,
+    size: 22,
+    font: fontBold,
+    color: DORADO,
+  })
+  curY -= 18
+
+  const subtitleText = 'Seleccion de Platos para Cocina'
+  const subtitleW = fontRegular.widthOfTextAtSize(subtitleText, 10)
+  page.drawText(subtitleText, {
+    x: MARGIN + (pageW - subtitleW) / 2,
+    y: curY,
+    size: 10,
+    font: fontRegular,
+    color: GRIS,
+  })
+  curY -= 15
+
+  // Dorado line
+  page.drawLine({
+    start: { x: MARGIN, y: curY },
+    end: { x: MARGIN + pageW, y: curY },
+    thickness: 2,
+    color: DORADO,
+  })
+  curY -= 20
+
+  // ╔══════════════════════════════════════════════════════════════════════╗
+  // ║  INFO RESERVA                                                       ║
+  // ╚══════════════════════════════════════════════════════════════════════╝
+  const infoH = 75
+  page.drawRectangle({
+    x: MARGIN,
+    y: curY - infoH,
+    width: pageW,
+    height: infoH,
+    color: BG_LIGHT,
+  })
+
+  const infoX = MARGIN + 15
+  const col2X = MARGIN + pageW / 2 + 15
+  let infoY = curY - 16
+
+  page.drawText(`Reserva: ${refDisplay}`, { x: infoX, y: infoY, size: 11, font: fontBold, color: INK })
+  page.drawText(`Fecha: ${formatDate(reservation.fecha)}`, { x: col2X, y: infoY, size: 11, font: fontRegular, color: INK })
+  infoY -= 18
+
+  page.drawText(`Cliente: ${reservation.customer_name}`, { x: infoX, y: infoY, size: 11, font: fontRegular, color: INK })
+  page.drawText(`Hora: ${reservation.hora_inicio}h`, { x: col2X, y: infoY, size: 11, font: fontRegular, color: INK })
+  infoY -= 18
+
+  const menuText = truncate(`Menu: ${menu?.name || reservation.menu_code}`, fontRegular, 11, pageW / 2 - 30)
+  page.drawText(menuText, { x: infoX, y: infoY, size: 11, font: fontRegular, color: INK })
+  page.drawText(`Comensales: ${reservation.personas}`, { x: col2X, y: infoY, size: 11, font: fontBold, color: INK })
+
+  if (reservation.customer_phone) {
+    infoY -= 16
+    page.drawText(`Tel: ${reservation.customer_phone}`, { x: infoX, y: infoY, size: 9, font: fontRegular, color: GRIS })
+  }
+
+  curY -= infoH + 20
+
+  // ╔══════════════════════════════════════════════════════════════════════╗
+  // ║  RESUMEN DE CANTIDADES                                              ║
+  // ╚══════════════════════════════════════════════════════════════════════╝
+  page.drawText('RESUMEN DE CANTIDADES', { x: MARGIN, y: curY, size: 14, font: fontBold, color: TERRACOTA })
+  curY -= 22
+
+  const drawCountsSection = (title: string, courseKey: string, color: typeof DORADO) => {
+    const entries = Object.entries(counts[courseKey])
+    if (entries.length === 0) return
+
+    ensureSpace(22 + entries.length * 20 + 5)
+
+    // Header row
+    page.drawRectangle({ x: MARGIN, y: curY - 18, width: pageW, height: 22, color })
+    page.drawText(title, { x: MARGIN + 10, y: curY - 12, size: 10, font: fontBold, color: WHITE })
+    curY -= 22
+
+    for (const [id, count] of entries) {
+      page.drawRectangle({ x: MARGIN, y: curY - 16, width: pageW, height: 20, color: WHITE })
+      page.drawLine({
+        start: { x: MARGIN, y: curY - 16 },
+        end: { x: MARGIN + pageW, y: curY - 16 },
+        thickness: 0.5,
+        color: LINE_COLOR,
+      })
+
+      const name = truncate(dishName(courseKey, id), fontRegular, 10, pageW - 80)
+      page.drawText(name, { x: MARGIN + 10, y: curY - 11, size: 10, font: fontRegular, color: INK })
+
+      const countStr = String(count)
+      const countW = fontBold.widthOfTextAtSize(countStr, 13)
+      page.drawText(countStr, { x: MARGIN + pageW - 15 - countW, y: curY - 12, size: 13, font: fontBold, color })
+      curY -= 20
+    }
+  }
+
+  if (choices?.first_course) {
+    drawCountsSection('PRIMER PLATO', 'first_course', DORADO)
+  }
+  drawCountsSection('SEGUNDO PLATO', 'second_course', TERRACOTA)
+  drawCountsSection('POSTRE', 'dessert', VERDE)
+
+  curY -= 15
+
+  // ╔══════════════════════════════════════════════════════════════════════╗
+  // ║  ALERGIAS                                                           ║
+  // ╚══════════════════════════════════════════════════════════════════════╝
+  if (allergiesList.length > 0) {
+    const allergyBoxH = 28 + allergiesList.length * 16
+    ensureSpace(allergyBoxH + 10)
+
+    page.drawRectangle({ x: MARGIN, y: curY - allergyBoxH, width: pageW, height: allergyBoxH, color: BG_RED })
+    page.drawRectangle({
+      x: MARGIN, y: curY - allergyBoxH, width: pageW, height: allergyBoxH,
+      borderColor: BORDER_RED, borderWidth: 1,
     })
 
-    const chunks: Uint8Array[] = []
-    doc.on('data', (chunk: Uint8Array) => chunks.push(chunk))
-    doc.on('end', () => resolve(Buffer.concat(chunks)))
-    doc.on('error', reject)
+    page.drawText('ALERGIAS E INTOLERANCIAS', {
+      x: MARGIN + 10, y: curY - 14, size: 11, font: fontBold, color: ROJO,
+    })
 
-    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right
-    let y = doc.y
-
-    // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  HEADER                                                             ║
-    // ╚══════════════════════════════════════════════════════════════════════╝
-    doc.fontSize(22).fillColor(DORADO).text('Canal Olímpico', { align: 'center' })
-    doc.moveDown(0.2)
-    doc.fontSize(10).fillColor(GRIS).text('Selección de Platos para Cocina', { align: 'center' })
-    doc.moveDown(0.5)
-
-    // Línea dorada
-    y = doc.y
-    doc.moveTo(doc.page.margins.left, y)
-      .lineTo(doc.page.margins.left + pageWidth, y)
-      .strokeColor(DORADO)
-      .lineWidth(2)
-      .stroke()
-    doc.moveDown(0.8)
-
-    // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  INFO RESERVA                                                       ║
-    // ╚══════════════════════════════════════════════════════════════════════╝
-    const infoBoxY = doc.y
-    doc.rect(doc.page.margins.left, infoBoxY, pageWidth, 80)
-      .fillColor(BG_LIGHT).fill()
-
-    doc.fillColor(INK)
-    const infoX = doc.page.margins.left + 15
-    const col2X = doc.page.margins.left + pageWidth / 2 + 15
-
-    doc.fontSize(11).font('Helvetica-Bold')
-      .text(`Reserva: ${refDisplay}`, infoX, infoBoxY + 12)
-    doc.font('Helvetica')
-      .text(`Cliente: ${reservation.customer_name}`, infoX, infoBoxY + 30)
-    doc.text(`Menú: ${menu?.name || reservation.menu_code}`, infoX, infoBoxY + 48)
-
-    doc.text(`Fecha: ${formatDate(reservation.fecha)}`, col2X, infoBoxY + 12)
-    doc.text(`Hora: ${reservation.hora_inicio}h`, col2X, infoBoxY + 30)
-    doc.font('Helvetica-Bold')
-      .text(`Comensales: ${reservation.personas}`, col2X, infoBoxY + 48)
-    doc.font('Helvetica')
-
-    if (reservation.customer_phone) {
-      doc.fontSize(9).fillColor(GRIS)
-        .text(`Tel: ${reservation.customer_phone}`, infoX, infoBoxY + 64)
+    let allergyY = curY - 30
+    for (const a of allergiesList) {
+      const allergyText = truncate(`- ${a.guest}: ${a.text}`, fontRegular, 9, pageW - 20)
+      page.drawText(allergyText, {
+        x: MARGIN + 10, y: allergyY, size: 9, font: fontRegular, color: ROJO,
+      })
+      allergyY -= 16
     }
 
-    doc.y = infoBoxY + 90
-    doc.moveDown(0.5)
+    curY -= allergyBoxH + 12
+  }
 
-    // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  RESUMEN DE CANTIDADES                                              ║
-    // ╚══════════════════════════════════════════════════════════════════════╝
-    doc.fontSize(14).fillColor(TERRACOTA).font('Helvetica-Bold')
-      .text('RESUMEN DE CANTIDADES', doc.page.margins.left)
-    doc.font('Helvetica')
-    doc.moveDown(0.4)
+  // ╔══════════════════════════════════════════════════════════════════════╗
+  // ║  DETALLE POR COMENSAL                                               ║
+  // ╚══════════════════════════════════════════════════════════════════════╝
+  ensureSpace(40 + selections.length * 20)
 
-    const drawCountsSection = (title: string, courseKey: string, color: [number, number, number]) => {
-      const entries = Object.entries(counts[courseKey])
-      if (entries.length === 0) return
+  page.drawText('DETALLE POR COMENSAL', { x: MARGIN, y: curY, size: 14, font: fontBold, color: TERRACOTA })
+  curY -= 22
 
-      y = doc.y
-      // Header row
-      doc.rect(doc.page.margins.left, y, pageWidth, 22).fillColor(color).fill()
-      doc.fontSize(10).fillColor(WHITE).font('Helvetica-Bold')
-        .text(title, doc.page.margins.left + 10, y + 6)
-      doc.font('Helvetica')
-      doc.y = y + 22
-
-      for (const [id, count] of entries) {
-        y = doc.y
-        doc.rect(doc.page.margins.left, y, pageWidth, 20).fillColor(WHITE).fill()
-        doc.moveTo(doc.page.margins.left, y + 20)
-          .lineTo(doc.page.margins.left + pageWidth, y + 20)
-          .strokeColor([232, 226, 214]).lineWidth(0.5).stroke()
-
-        doc.fontSize(10).fillColor(INK)
-          .text(dishName(courseKey, id), doc.page.margins.left + 10, y + 5, { width: pageWidth - 80 })
-        doc.fontSize(12).fillColor(color).font('Helvetica-Bold')
-          .text(`${count}`, doc.page.margins.left + pageWidth - 50, y + 4, { width: 40, align: 'right' })
-        doc.font('Helvetica')
-        doc.y = y + 20
-      }
-    }
-
-    if (choices?.first_course) {
-      drawCountsSection('PRIMER PLATO', 'first_course', DORADO)
-    }
-    drawCountsSection('SEGUNDO PLATO', 'second_course', TERRACOTA)
-    drawCountsSection('POSTRE', 'dessert', VERDE)
-
-    doc.moveDown(1)
-
-    // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  ALERGIAS (si hay — resaltadas arriba del detalle)                  ║
-    // ╚══════════════════════════════════════════════════════════════════════╝
-    if (allergiesList.length > 0) {
-      // Check if we need a new page
-      if (doc.y > doc.page.height - 160) doc.addPage()
-
-      y = doc.y
-      const allergyBoxH = 24 + allergiesList.length * 16
-      doc.rect(doc.page.margins.left, y, pageWidth, allergyBoxH)
-        .fillColor([254, 242, 242] as [number, number, number]).fill()
-      doc.rect(doc.page.margins.left, y, pageWidth, allergyBoxH)
-        .strokeColor([252, 165, 165] as [number, number, number]).lineWidth(1).stroke()
-
-      doc.fontSize(11).fillColor(ROJO).font('Helvetica-Bold')
-        .text('⚠ ALERGIAS E INTOLERANCIAS', doc.page.margins.left + 10, y + 6)
-      doc.font('Helvetica').fontSize(9)
-
-      let allergyY = y + 24
-      for (const a of allergiesList) {
-        doc.fillColor([153, 27, 27] as [number, number, number])
-          .text(`• ${a.guest}: ${a.text}`, doc.page.margins.left + 10, allergyY, { width: pageWidth - 20 })
-        allergyY += 16
-      }
-
-      doc.y = y + allergyBoxH + 10
-      doc.moveDown(0.5)
-    }
-
-    // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  DETALLE POR COMENSAL                                               ║
-    // ╚══════════════════════════════════════════════════════════════════════╝
-    // Check page space
-    if (doc.y > doc.page.height - 200) doc.addPage()
-
-    doc.fontSize(14).fillColor(TERRACOTA).font('Helvetica-Bold')
-      .text('DETALLE POR COMENSAL', doc.page.margins.left)
-    doc.font('Helvetica')
-    doc.moveDown(0.4)
-
-    // ── Table header ──
-    const hasFirst = !!choices?.first_course
-    // Column widths
-    const colNum = 25
-    const colName = hasFirst ? 80 : 100
-    const colFirst = hasFirst ? 110 : 0
-    const colSecond = hasFirst ? 110 : 150
-    const colDessert = hasFirst ? 80 : 100
-    const colAllergy = pageWidth - colNum - colName - colFirst - colSecond - colDessert
-
-    const cols = [
-      { label: 'Nº', w: colNum },
-      { label: 'Nombre', w: colName },
-      ...(hasFirst ? [{ label: 'Primero', w: colFirst }] : []),
-      { label: 'Segundo', w: colSecond },
-      { label: 'Postre', w: colDessert },
-      { label: 'Alergias', w: colAllergy },
-    ]
-
-    const rowH = 20
-    y = doc.y
-
-    // Header row background
-    doc.rect(doc.page.margins.left, y, pageWidth, rowH).fillColor(INK).fill()
-
-    let colX = doc.page.margins.left
-    doc.fontSize(8).fillColor(WHITE).font('Helvetica-Bold')
-    for (const col of cols) {
-      doc.text(col.label, colX + 4, y + 6, { width: col.w - 8, ellipsis: true })
-      colX += col.w
-    }
-    doc.font('Helvetica')
-    doc.y = y + rowH
-
-    // ── Data rows ──
-    for (const sel of selections) {
-      y = doc.y
-      // New page check
-      if (y > doc.page.height - 60) {
-        doc.addPage()
-        y = doc.y
-      }
-
-      const bg = sel.guest_number % 2 === 0 ? BG_LIGHT : WHITE
-      doc.rect(doc.page.margins.left, y, pageWidth, rowH).fillColor(bg).fill()
-      doc.moveTo(doc.page.margins.left, y + rowH)
-        .lineTo(doc.page.margins.left + pageWidth, y + rowH)
-        .strokeColor([232, 226, 214]).lineWidth(0.3).stroke()
-
-      const rowData = [
-        String(sel.guest_number),
-        sel.guest_name || '-',
-        ...(hasFirst ? [sel.first_course ? dishName('first_course', sel.first_course) : '-'] : []),
-        sel.second_course ? dishName('second_course', sel.second_course) : '-',
-        sel.dessert ? dishName('dessert', sel.dessert) : '-',
-        sel.allergies || '-',
+  const hasFirst = !!choices?.first_course
+  const cols = hasFirst
+    ? [
+        { label: 'No', w: 25 },
+        { label: 'Nombre', w: 75 },
+        { label: 'Primero', w: 110 },
+        { label: 'Segundo', w: 110 },
+        { label: 'Postre', w: 80 },
+        { label: 'Alergias', w: pageW - 25 - 75 - 110 - 110 - 80 },
+      ]
+    : [
+        { label: 'No', w: 30 },
+        { label: 'Nombre', w: 100 },
+        { label: 'Segundo', w: 150 },
+        { label: 'Postre', w: 100 },
+        { label: 'Alergias', w: pageW - 30 - 100 - 150 - 100 },
       ]
 
-      colX = doc.page.margins.left
-      for (let i = 0; i < cols.length; i++) {
-        const isAllergy = i === cols.length - 1 && sel.allergies
-        doc.fontSize(8)
-          .fillColor(isAllergy ? ROJO : INK)
-          .font(isAllergy ? 'Helvetica-Bold' : 'Helvetica')
-          .text(rowData[i], colX + 4, y + 6, { width: cols[i].w - 8, ellipsis: true })
-        colX += cols[i].w
-      }
-      doc.font('Helvetica')
-      doc.y = y + rowH
+  const rowH = 20
+
+  // Header row
+  page.drawRectangle({ x: MARGIN, y: curY - rowH + 4, width: pageW, height: rowH, color: INK })
+
+  let colX = MARGIN
+  for (const col of cols) {
+    page.drawText(col.label, { x: colX + 4, y: curY - 10, size: 8, font: fontBold, color: WHITE })
+    colX += col.w
+  }
+  curY -= rowH
+
+  // Data rows
+  for (const sel of selections) {
+    ensureSpace(rowH + 5)
+
+    const bg = sel.guest_number % 2 === 0 ? BG_LIGHT : WHITE
+    page.drawRectangle({ x: MARGIN, y: curY - rowH + 4, width: pageW, height: rowH, color: bg })
+    page.drawLine({
+      start: { x: MARGIN, y: curY - rowH + 4 },
+      end: { x: MARGIN + pageW, y: curY - rowH + 4 },
+      thickness: 0.3,
+      color: LINE_COLOR,
+    })
+
+    const rowData = hasFirst
+      ? [
+          String(sel.guest_number),
+          sel.guest_name || '-',
+          sel.first_course ? dishName('first_course', sel.first_course) : '-',
+          sel.second_course ? dishName('second_course', sel.second_course) : '-',
+          sel.dessert ? dishName('dessert', sel.dessert) : '-',
+          sel.allergies || '-',
+        ]
+      : [
+          String(sel.guest_number),
+          sel.guest_name || '-',
+          sel.second_course ? dishName('second_course', sel.second_course) : '-',
+          sel.dessert ? dishName('dessert', sel.dessert) : '-',
+          sel.allergies || '-',
+        ]
+
+    colX = MARGIN
+    for (let i = 0; i < cols.length; i++) {
+      const isAllergy = i === cols.length - 1 && sel.allergies
+      const cellText = truncate(rowData[i], isAllergy ? fontBold : fontRegular, 8, cols[i].w - 8)
+      page.drawText(cellText, {
+        x: colX + 4,
+        y: curY - 10,
+        size: 8,
+        font: isAllergy ? fontBold : fontRegular,
+        color: isAllergy ? ROJO : INK,
+      })
+      colX += cols[i].w
     }
+    curY -= rowH
+  }
 
-    // ╔══════════════════════════════════════════════════════════════════════╗
-    // ║  FOOTER                                                             ║
-    // ╚══════════════════════════════════════════════════════════════════════╝
-    doc.moveDown(1.5)
-    y = doc.y
-    doc.moveTo(doc.page.margins.left, y)
-      .lineTo(doc.page.margins.left + pageWidth, y)
-      .strokeColor(DORADO).lineWidth(1).stroke()
-    doc.moveDown(0.5)
+  // ╔══════════════════════════════════════════════════════════════════════╗
+  // ║  FOOTER                                                             ║
+  // ╚══════════════════════════════════════════════════════════════════════╝
+  curY -= 20
+  ensureSpace(40)
 
-    const now = new Date()
-    const timestamp = now.toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })
-    doc.fontSize(8).fillColor(GRIS)
-      .text(`Generado: ${timestamp}`, { align: 'center' })
-    doc.text(`Canal Olímpico — Sistema de Reservas`, { align: 'center' })
-
-    doc.end()
+  page.drawLine({
+    start: { x: MARGIN, y: curY },
+    end: { x: MARGIN + pageW, y: curY },
+    thickness: 1,
+    color: DORADO,
   })
+  curY -= 14
+
+  const now = new Date()
+  const timestamp = now.toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })
+  const footerText = `Generado: ${timestamp}`
+  const footerW = fontRegular.widthOfTextAtSize(footerText, 8)
+  page.drawText(footerText, { x: MARGIN + (pageW - footerW) / 2, y: curY, size: 8, font: fontRegular, color: GRIS })
+  curY -= 12
+
+  const brandText = 'Canal Olimpico - Sistema de Reservas'
+  const brandW = fontRegular.widthOfTextAtSize(brandText, 8)
+  page.drawText(brandText, { x: MARGIN + (pageW - brandW) / 2, y: curY, size: 8, font: fontRegular, color: GRIS })
+
+  // ── Save ──
+  const pdfBytes = await doc.save()
+  return Buffer.from(pdfBytes)
 }
