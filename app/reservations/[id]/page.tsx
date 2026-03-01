@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 
 interface Reservation {
   id: string
+  reservation_number: string | null
   event_type: string
   customer_name: string
   customer_phone: string
@@ -216,6 +217,9 @@ export default function ReservationDetail() {
                 {reservation.customer_name || 'Sin cliente'}
               </h1>
               <p className="text-slate-500 text-xs sm:text-sm mt-0.5 truncate">
+                {reservation.reservation_number && (
+                  <span className="font-mono font-semibold" style={{ color: '#B08D57' }}>{reservation.reservation_number} · </span>
+                )}
                 {eventLabels[reservation.event_type] || reservation.event_type} · {fechaFormatted}
               </p>
             </div>
@@ -239,6 +243,12 @@ export default function ReservationDetail() {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Información de la Reserva</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {reservation.reservation_number && (
+                  <div className="p-3 rounded-xl sm:col-span-2" style={{ background: '#fdf6e8', border: '1px solid #e8d5b2' }}>
+                    <p className="text-xs font-medium uppercase tracking-wider" style={{ color: '#92681e' }}>Nº Reserva</p>
+                    <p className="text-lg font-bold font-mono mt-1" style={{ color: '#B08D57' }}>{reservation.reservation_number}</p>
+                  </div>
+                )}
                 <InfoItem label="Cliente" value={reservation.customer_name || 'N/A'} />
                 <InfoItem label="Teléfono" value={reservation.customer_phone || 'N/A'} />
                 <InfoItem label="Email" value={reservation.customer_email || 'N/A'} />

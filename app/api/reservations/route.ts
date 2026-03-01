@@ -7,6 +7,34 @@ import { getStripe } from '@/lib/stripe'
 import { sanitize, sanitizeObject, isValidPhone, isBot, isTooFast } from '@/lib/security'
 import { notifyNewReservation } from '@/lib/telegram'
 
+// ─── Generar número de reserva secuencial ────────────────────────────────────
+// Formato: CO-YYYYMMDD-NNN (ej: CO-20260301-001)
+async function generateReservationNumber(fecha: string): Promise<string> {
+  const dateStr = fecha.replace(/-/g, '') // '2026-03-01' → '20260301'
+  const prefix = `CO-${dateStr}-`
+
+  try {
+    const { data } = await supabaseAdmin
+      .from('reservations')
+      .select('reservation_number')
+      .like('reservation_number', `${prefix}%`)
+      .order('reservation_number', { ascending: false })
+      .limit(1)
+
+    let seq = 1
+    if (data && data.length > 0 && data[0].reservation_number) {
+      const lastNum = parseInt(data[0].reservation_number.split('-').pop() || '0')
+      seq = lastNum + 1
+    }
+
+    return `${prefix}${String(seq).padStart(3, '0')}`
+  } catch (err) {
+    console.warn('[reservations] Error generating reservation_number, using fallback:', err)
+    // Fallback: usar timestamp si falla la consulta
+    return `${prefix}${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`
+  }
+}
+
 // ─── Tipos válidos de evento ─────────────────────────────────────────────────
 const VALID_EVENT_TYPES = [
   'RESERVA_NORMAL',
@@ -211,6 +239,15 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
     }
 
+    // Generar número de reserva
+    let reservationNumber: string | null = null
+    try {
+      reservationNumber = await generateReservationNumber(fecha!)
+      reservationData.reservation_number = reservationNumber
+    } catch (err) {
+      console.warn('[reservations POST] Could not generate reservation_number:', err)
+    }
+
     if (event_type === 'NOCTURNA_EXCLUSIVA') {
       reservationData.is_exclusive = true
     }
@@ -257,6 +294,7 @@ export async function POST(req: NextRequest) {
       eventType: event_type as string,
       tableId: table_id,
       reservationId,
+      reservationNumber,
     }).catch(err => console.error('[reservations POST] Restaurant email error:', err))
 
     if (event_type === 'RESERVA_NORMAL') {
@@ -270,6 +308,7 @@ export async function POST(req: NextRequest) {
           tableId: table_id,
           zone: zona || null,
           reservationId,
+          reservationNumber,
         }).catch(err => console.error('[reservations POST] Email error:', err))
       }
 
@@ -318,6 +357,7 @@ export async function POST(req: NextRequest) {
             paymentUrl: session.url!,
             deadlineDays: PAYMENT_DEADLINE_DAYS,
             reservationId,
+            reservationNumber,
           }).catch(err => console.error('[reservations POST] Email payment error:', err))
         }
 
@@ -330,9 +370,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       reservation_id: reservationId,
+      reservation_number: reservationNumber,
       message: event_type === 'RESERVA_NORMAL'
-        ? 'Reserva confirmada. Se ha enviado email de confirmación.'
-        : `Reserva creada. Se ha enviado email con link de pago (señal ${deposit_amount}€).`,
+        ? `Reserva ${reservationNumber || reservationId.substring(0, 8)} confirmada. Se ha enviado email de confirmación.`
+        : `Reserva ${reservationNumber || reservationId.substring(0, 8)} creada. Se ha enviado email con link de pago (señal ${deposit_amount}€).`,
       table_id: table_id,
       total_amount,
       deposit_amount,

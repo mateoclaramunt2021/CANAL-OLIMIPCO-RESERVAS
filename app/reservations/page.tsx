@@ -7,6 +7,7 @@ import { createRealtimeClient } from '@/lib/supabase'
 
 interface Reservation {
   id: string
+  reservation_number: string | null
   customer_name: string
   customer_phone: string
   customer_email: string
@@ -119,6 +120,7 @@ export default function Reservations() {
       r.customer_phone?.includes(search) ||
       r.customer_email?.toLowerCase().includes(search.toLowerCase()) ||
       r.event_type?.toLowerCase().includes(search.toLowerCase()) ||
+      r.reservation_number?.toLowerCase().includes(search.toLowerCase()) ||
       r.id?.toLowerCase().includes(search.toLowerCase())
     return matchStatus && matchSearch
   })
@@ -152,7 +154,7 @@ export default function Reservations() {
             <div className="flex-1 min-w-0">
               <input
                 type="text"
-                placeholder="Buscar por nombre, teléfono, tipo o ID..."
+                placeholder="Buscar por nombre, teléfono, nº reserva..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-slate-50/50"
@@ -194,6 +196,7 @@ export default function Reservations() {
               <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nº Reserva</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
@@ -207,6 +210,11 @@ export default function Reservations() {
                 <tbody className="divide-y divide-slate-100">
                   {sorted.map(res => (
                     <tr key={res.id} className="hover:bg-blue-50/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-mono font-semibold" style={{ color: '#B08D57' }}>
+                          {res.reservation_number || res.id.substring(0, 8)}
+                        </span>
+                      </td>
                       <td className="px-6 py-4">
                         <div>
                           <p className="font-medium text-slate-900">{res.customer_name || 'Sin nombre'}</p>

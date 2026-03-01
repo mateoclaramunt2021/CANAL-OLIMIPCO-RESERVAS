@@ -7,6 +7,7 @@ import { createRealtimeClient } from '@/lib/supabase'
 
 interface Reservation {
   id: string
+  reservation_number: string | null
   customer_name: string
   customer_phone: string
   fecha: string
@@ -384,6 +385,7 @@ export default function Dashboard() {
                                   {r.customer_name || 'Sin nombre'}
                                 </p>
                                 <p className="text-xs" style={{ color: '#8a8578' }}>
+                                  {r.reservation_number && <span className="font-mono" style={{ color: '#B08D57' }}>{r.reservation_number} · </span>}
                                   {r.fecha} · {r.hora_inicio?.substring(0, 5)} · {r.personas} pers.
                                 </p>
                               </div>
@@ -566,6 +568,7 @@ function ReservationRow({ r, isNew }: { r: Reservation; isNew: boolean }) {
             {r.hora_inicio?.substring(0, 5)} — {r.customer_name || 'Sin nombre'}
           </p>
           <p className="text-xs truncate" style={{ color: '#8a8578' }}>
+            {r.reservation_number && <span className="font-mono" style={{ color: '#B08D57' }}>{r.reservation_number} · </span>}
             {eventIcons[r.event_type] || '📋'} {eventLabels[r.event_type] || r.event_type}
             {r.table_id ? ` · Mesa ${r.table_id}` : ''}
           </p>

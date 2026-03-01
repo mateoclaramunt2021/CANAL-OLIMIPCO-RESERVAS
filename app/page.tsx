@@ -914,6 +914,14 @@ export default function Home() {
           <Reveal>
             <ReservationForm />
           </Reveal>
+          <Reveal>
+            <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: '#b0a898' }}>
+              ¿Necesitas cancelar una reserva?{' '}
+              <a href="/cancelar" style={{ color: '#C4724E', textDecoration: 'underline' }}>
+                Haz clic aquí
+              </a>
+            </p>
+          </Reveal>
         </div>
       </section>
 
