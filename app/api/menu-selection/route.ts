@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getMenuChoices, menuRequiresSelection, findMenu } from '@/core/menus'
 import { sendDishSelectionConfirmation, sendDishSummaryToRestaurant } from '@/lib/email'
+import { generateDishSummary } from '@/lib/dish-summary'
 
 // ─── GET: Cargar datos de selección de platos por token ─────────────────────
 // Query: ?token=abc123
@@ -183,31 +184,37 @@ export async function POST(req: NextRequest) {
 
       // Send confirmation email to customer
       if (reservation.customer_email) {
-        sendDishSelectionConfirmation(reservation.customer_email, {
-          nombre: reservation.customer_name || 'Cliente',
-          fecha: reservation.fecha,
-          personas: reservation.personas,
-          reservationNumber: reservation.reservation_number || reservation.id.substring(0, 8),
-          summaryHtml: '',
-        }).catch(err => console.error('[menu-selection] Email confirmation error:', err))
+        try {
+          await sendDishSelectionConfirmation(reservation.customer_email, {
+            nombre: reservation.customer_name || 'Cliente',
+            fecha: reservation.fecha,
+            personas: reservation.personas,
+            reservationNumber: reservation.reservation_number || reservation.id.substring(0, 8),
+            summaryHtml: '',
+          })
+          console.log('[menu-selection] Customer confirmation email sent')
+        } catch (err) {
+          console.error('[menu-selection] Email confirmation error:', err)
+        }
       }
 
-      // Fetch summary HTML and send to restaurant
+      // Generate summary and send to restaurant
       try {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://reservascanalolimpico.netlify.app'
-        const summaryRes = await fetch(`${siteUrl}/api/menu-selection/summary?reservation_id=${reservation.id}`)
-        if (summaryRes.ok) {
-          const summaryData = await summaryRes.json()
-          sendDishSummaryToRestaurant({
+        const summaryData = await generateDishSummary(reservation.id)
+        if (summaryData) {
+          await sendDishSummaryToRestaurant({
             reservationNumber: reservation.reservation_number || reservation.id.substring(0, 8),
             customerName: reservation.customer_name || 'Cliente',
             fecha: reservation.fecha,
             personas: reservation.personas,
             summaryHtml: summaryData.html,
-          }).catch(err => console.error('[menu-selection] Restaurant email error:', err))
+          })
+          console.log('[menu-selection] Summary email sent to restaurant')
+        } else {
+          console.error('[menu-selection] No summary data generated')
         }
       } catch (err) {
-        console.error('[menu-selection] Summary fetch error:', err)
+        console.error('[menu-selection] Restaurant email error:', err)
       }
 
       return NextResponse.json({
