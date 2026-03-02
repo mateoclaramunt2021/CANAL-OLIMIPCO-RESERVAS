@@ -740,12 +740,12 @@ export default function Home() {
               <span className="trust-bar__text">Plazas disponibles</span>
             </div>
             <div className="trust-bar__item">
-              <AnimatedCounter target={500} suffix="+" />
+              <AnimatedCounter target={100} suffix="+" />
               <span className="trust-bar__text">Eventos realizados</span>
             </div>
             <div className="trust-bar__item">
-              <AnimatedCounter target={4} suffix=".8★" />
-              <span className="trust-bar__text">Valoración Google</span>
+              <span className="counter__value">☀️</span>
+              <span className="trust-bar__text">Terraza privada</span>
             </div>
             <div className="trust-bar__item">
               <span className="counter__value">24h</span>
