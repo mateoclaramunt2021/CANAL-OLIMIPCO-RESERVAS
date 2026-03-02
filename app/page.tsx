@@ -699,7 +699,7 @@ export default function Home() {
 
       {/* ━━━ HERO ━━━ */}
       <section id="hero" className="hero">
-        <Image src="/hero.jpg" alt="Canal Olímpico Restaurante" fill priority className="hero__img" sizes="100vw" />
+        <Image src="/hero.jpg" alt="Canal Olímpico Restaurante" fill priority className="hero__img" sizes="100vw" quality={100} unoptimized />
         <div className="hero__overlay" />
         <div className="hero__vignette" />
         <div className="hero__content">
