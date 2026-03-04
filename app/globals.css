@@ -48,6 +48,16 @@
   html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 }
 
+/* ─── SR Only (SEO accessible text) ───────────────────────────────────────── */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ─── SEO Local Content Block ─────────────────────────────────────────────── */
+.seo-local{background:var(--cream-deep);padding:48px 0;border-top:1px solid var(--sand)}
+.seo-local__heading{font-family:var(--font-display);font-size:clamp(1.3rem,2.5vw,1.8rem);color:var(--ink);margin-bottom:20px;font-weight:600}
+.seo-local p{color:var(--text);font-size:.95rem;line-height:1.8;margin-bottom:16px;max-width:900px}
+.seo-local address{font-style:normal;color:var(--text);font-size:.9rem;line-height:1.8;margin-top:20px;padding:16px 20px;background:var(--white);border-radius:var(--radius-sm);border:1px solid var(--sand);display:inline-block}
+.seo-local address a{color:var(--gold);font-weight:500}
+
 .landing{
   font-family:var(--font-body);color:var(--ink-soft);
   background:var(--cream);overflow-x:hidden;line-height:1.7;

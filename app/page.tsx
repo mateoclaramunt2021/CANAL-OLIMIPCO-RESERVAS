@@ -699,15 +699,16 @@ export default function Home() {
 
       {/* ━━━ HERO ━━━ */}
       <section id="hero" className="hero">
-        <Image src="/hero.jpg" alt="Canal Olímpico Restaurante" fill priority className="hero__img" sizes="100vw" quality={100} unoptimized />
+        <Image src="/hero.jpg" alt="Restaurante Canal Olímpico en Castelldefels — Terraza mediterránea con vistas al Canal Olímpic de Catalunya" fill priority className="hero__img" sizes="100vw" quality={100} unoptimized />
         <div className="hero__overlay" />
         <div className="hero__vignette" />
         <div className="hero__content">
           <div className="hero__gold-line hero__anim" style={{ animationDelay: '.2s' }} />
-          <span className="hero__tag hero__anim" style={{ animationDelay: '.4s' }}>Restaurante · Terraza · Eventos</span>
+          <span className="hero__tag hero__anim" style={{ animationDelay: '.4s' }}>Restaurante · Terraza · Eventos en Castelldefels</span>
           <h1 className="hero__title">
-            <span className="hero__title-top hero__anim" style={{ animationDelay: '.7s' }}>Canal</span>
-            <span className="hero__title-bot hero__anim" style={{ animationDelay: '.9s' }}>Olímpico</span>
+            <span className="sr-only">Restaurante Canal Olímpico en Castelldefels — Terraza, Eventos y Reservas Online</span>
+            <span className="hero__title-top hero__anim" style={{ animationDelay: '.7s' }} aria-hidden="true">Canal</span>
+            <span className="hero__title-bot hero__anim" style={{ animationDelay: '.9s' }} aria-hidden="true">Olímpico</span>
           </h1>
           <div className="hero__ornament hero__anim" style={{ animationDelay: '1.1s' }}>
             <svg viewBox="0 0 200 16" fill="none">
@@ -717,9 +718,9 @@ export default function Home() {
               <defs><linearGradient id="goldGrad" x1="0" y1="0" x2="200" y2="0"><stop offset="0%" stopColor="transparent" /><stop offset="20%" stopColor="#B08D57" /><stop offset="50%" stopColor="#d4b87a" /><stop offset="80%" stopColor="#B08D57" /><stop offset="100%" stopColor="transparent" /></linearGradient></defs>
             </svg>
           </div>
-          <p className="hero__subtitle hero__anim" style={{ animationDelay: '1.3s' }}>Gastronomía mediterránea junto al canal</p>
+          <p className="hero__subtitle hero__anim" style={{ animationDelay: '1.3s' }}>El mejor restaurante con terraza de Castelldefels — Cocina mediterránea junto al Canal Olímpic</p>
           <p className="hero__loc hero__anim" style={{ animationDelay: '1.5s' }}>
-            <span className="hero__loc-icon">◆</span> Castelldefels, Barcelona
+            <span className="hero__loc-icon">◆</span> Castelldefels, Barcelona — Av. del Canal Olímpic, 2
           </p>
           <div className="hero__buttons hero__anim" style={{ animationDelay: '1.7s' }}>
             <button className="btn btn--primary btn--hero" onClick={() => scrollTo('reservar')}>Reservar Mesa</button>
@@ -759,21 +760,21 @@ export default function Home() {
       <section id="about" className="sec sec--cream">
         <div className="container">
           <Reveal>
-            <span className="sec__label">RESTAURANTE</span>
-            <h2 className="sec__heading">Cocina mediterránea<br />junto al Canal Olímpico</h2>
+            <span className="sec__label">RESTAURANTE EN CASTELLDEFELS</span>
+            <h2 className="sec__heading">Restaurante con terraza<br />en el Canal Olímpic de Castelldefels</h2>
             <div className="sec__line" />
           </Reveal>
 
           <div className="about-split">
             <Reveal className="about-split__txt">
               <p>
-                <strong>Terraza con vistas al agua, cocina mediterránea de calidad y un espacio perfecto para cualquier ocasión.</strong>
+                <strong>El restaurante Canal Olímpico es el mejor lugar para comer en Castelldefels: terraza con vistas al agua, cocina mediterránea de calidad y un espacio perfecto para cualquier ocasión.</strong>
               </p>
               <p>
-                Ya sea una comida entre amigos, una cena en familia o la celebración que llevas tiempo planeando — en Canal Olímpico tenemos el menú, el espacio y el equipo para hacerlo realidad.
+                Ya sea una comida entre amigos, una cena en familia o la celebración que llevas tiempo planeando — en nuestro restaurante de Castelldefels tenemos el menú, el espacio y el equipo para hacerlo realidad.
               </p>
               <p>
-                Menús de grupo desde 29€/persona con todo incluido. Reserva online en 2 minutos, sin llamar, sin esperar.
+                Menús de grupo desde 29€/persona con todo incluido. Reserva online en 2 minutos, sin llamar, sin esperar. El restaurante referencia junto al Canal Olímpic de Catalunya.
               </p>
               <div className="about-chips">
                 <span className="chip">🌊 Vistas al agua</span>
@@ -786,7 +787,7 @@ export default function Home() {
               </button>
             </Reveal>
             <Reveal className="about-split__img" delay={200}>
-              <Image src="/terraza.jpg" alt="Terraza Canal Olímpico" width={580} height={400} className="about-photo" sizes="(max-width:768px) 100vw, 50vw" />
+              <Image src="/terraza.jpg" alt="Terraza del restaurante Canal Olímpico en Castelldefels con vistas al agua — Comer en Castelldefels" width={580} height={400} className="about-photo" sizes="(max-width:768px) 100vw, 50vw" />
             </Reveal>
           </div>
 
@@ -822,10 +823,10 @@ export default function Home() {
       <section id="carta" className="sec sec--white">
         <div className="container">
           <Reveal>
-            <span className="sec__label">NUESTROS MENÚS</span>
-            <h2 className="sec__heading">La carta para tu celebración</h2>
+            <span className="sec__label">MENÚS Y CARTA — CASTELLDEFELS</span>
+            <h2 className="sec__heading">Menús para grupos y eventos en Castelldefels</h2>
             <div className="sec__line" />
-            <p className="sec__sub">Menús cerrados para grupos y eventos. Todo incluido, IVA incluido, sin sorpresas.</p>
+            <p className="sec__sub">Menús cerrados para grupos y eventos en nuestro restaurante de Castelldefels. Todo incluido, IVA incluido, sin sorpresas.</p>
           </Reveal>
 
           {/* Menu category tabs */}
@@ -888,9 +889,9 @@ export default function Home() {
         <div className="cta-banner__overlay" />
         <div className="container cta-banner__inner">
           <Reveal>
-            <span className="cta-banner__label">TU PRÓXIMO EVENTO</span>
-            <h2 className="cta-banner__title">¿Celebras algo especial?</h2>
-            <p className="cta-banner__sub">Cumpleaños, comuniones, comidas de empresa, fiestas privadas — reserva tu evento en 2 minutos.</p>
+            <span className="cta-banner__label">EVENTOS EN CASTELLDEFELS</span>
+            <h2 className="cta-banner__title">¿Celebras algo especial en Castelldefels?</h2>
+            <p className="cta-banner__sub">Cumpleaños, comuniones, comidas de empresa, fiestas privadas — reserva tu evento en el restaurante Canal Olímpico en 2 minutos.</p>
             <div className="cta-banner__btns">
               <button className="btn btn--primary btn--hero" onClick={() => scrollTo('reservar')}>Reservar evento →</button>
               <a href="tel:930347246" className="btn btn--glass btn--hero">📞 930 34 72 46</a>
@@ -903,8 +904,8 @@ export default function Home() {
       <section id="reservar" className="sec sec--cream">
         <div className="container">
           <Reveal>
-            <span className="sec__label">RESERVAS</span>
-            <h2 className="sec__heading">Reserva tu mesa o evento</h2>
+            <span className="sec__label">RESERVAS EN CASTELLDEFELS</span>
+            <h2 className="sec__heading">Reserva tu mesa o evento en Castelldefels</h2>
             <div className="sec__line" />
             <p className="sec__sub">
               Completa el formulario y recibirás confirmación inmediata por email.
@@ -927,12 +928,12 @@ export default function Home() {
 
       {/* ━━━ EVENTOS ━━━ */}
       <section id="eventos" className="sec sec--img">
-        <Image src="/terraza2.jpg" alt="Eventos Canal Olímpico" fill className="sec--img__bg" sizes="100vw" />
+        <Image src="/terraza2.jpg" alt="Eventos y celebraciones en el restaurante Canal Olímpico de Castelldefels — Terraza para grupos" fill className="sec--img__bg" sizes="100vw" />
         <div className="sec--img__ov" />
         <div className="container sec--img__z">
           <Reveal>
-            <span className="sec__label sec__label--lt">CELEBRACIONES</span>
-            <h2 className="sec__heading sec__heading--lt">Eventos &amp; Grupos</h2>
+            <span className="sec__label sec__label--lt">CELEBRACIONES EN CASTELLDEFELS</span>
+            <h2 className="sec__heading sec__heading--lt">Eventos y grupos en Castelldefels</h2>
             <div className="sec__line" />
           </Reveal>
           <Reveal>
@@ -974,7 +975,7 @@ export default function Home() {
         <div className="container">
           <Reveal>
             <span className="sec__label">PREGUNTAS FRECUENTES</span>
-            <h2 className="sec__heading">Todo lo que necesitas saber</h2>
+            <h2 className="sec__heading">Preguntas frecuentes sobre nuestro restaurante en Castelldefels</h2>
             <div className="sec__line" />
           </Reveal>
           <Reveal>
@@ -987,8 +988,8 @@ export default function Home() {
       <section id="mapa" className="sec sec--white">
         <div className="container">
           <Reveal>
-            <span className="sec__label">CÓMO LLEGAR</span>
-            <h2 className="sec__heading">Encuéntranos</h2>
+            <span className="sec__label">CÓMO LLEGAR A NUESTRO RESTAURANTE</span>
+            <h2 className="sec__heading">Restaurante Canal Olímpico — Castelldefels, Barcelona</h2>
             <div className="sec__line" />
           </Reveal>
           <Reveal>
@@ -1017,13 +1018,39 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ━━━ SEO LOCAL CONTENT ━━━ */}
+      <section className="seo-local" aria-label="Información del restaurante">
+        <div className="container">
+          <h2 className="seo-local__heading">Restaurante Canal Olímpico — Tu restaurante en Castelldefels</h2>
+          <p>
+            El <strong>Restaurante Canal Olímpico</strong> es uno de los mejores <strong>restaurantes en Castelldefels</strong>, situado junto al <strong>Canal Olímpic de Catalunya</strong>. 
+            Si buscas dónde <strong>comer en Castelldefels</strong>, nuestra <strong>terraza en Castelldefels</strong> con vistas al agua es el lugar perfecto.
+          </p>
+          <p>
+            Ofrecemos <strong>cocina mediterránea en Castelldefels</strong> con productos de proximidad. Somos la mejor opción como <strong>restaurante para eventos en Castelldefels</strong>: 
+            <strong>cumpleaños infantiles en Castelldefels</strong>, comidas de empresa, comuniones, cenas de grupo y <strong>eventos nocturnos en Castelldefels</strong>.
+          </p>
+          <p>
+            Nuestros <strong>menús de grupo en Castelldefels</strong> empiezan desde 14,50€ (infantil) y 29€/persona (adultos). 
+            Disponemos de <strong>parking gratuito</strong>, terraza de 200m², y un equipo profesional para hacer de tu celebración un éxito. 
+            Reserva online tu mesa en nuestro <strong>restaurante con terraza cerca de Barcelona</strong> en solo 2 minutos.
+          </p>
+          <address>
+            <strong>Restaurante Canal Olímpico</strong><br />
+            Av. del Canal Olímpic, 2, 08860 Castelldefels, Barcelona<br />
+            Teléfono: <a href="tel:930347246">930 34 72 46</a><br />
+            Email: <a href="mailto:canalolimpic@daliagrup.com">canalolimpic@daliagrup.com</a>
+          </address>
+        </div>
+      </section>
+
       {/* ━━━ FOOTER ━━━ */}
       <footer id="contacto" className="foot">
         <div className="container">
           <div className="foot__grid">
             <div className="foot__col">
               <h4 className="foot__brand">CANAL OLÍMPICO</h4>
-              <p className="foot__tagline">Restaurante · Terraza · Eventos</p>
+              <p className="foot__tagline">Restaurante · Terraza · Eventos en Castelldefels</p>
               <p>Av. del Canal Olímpic, 2<br />08860 Castelldefels, Barcelona</p>
               <div className="foot__social">
                 <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><Icon.Instagram /></a>

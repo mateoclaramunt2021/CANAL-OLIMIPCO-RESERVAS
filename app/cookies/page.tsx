@@ -2,8 +2,15 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Política de Cookies — Canal Olímpico',
-  description: 'Política de cookies del sitio web del Restaurante Canal Olímpico.',
+  title: 'Política de Cookies',
+  description: 'Política de cookies del sitio web del Restaurante Canal Olímpico en Castelldefels.',
+  alternates: {
+    canonical: 'https://canalolimpicorestaurante.com/cookies',
+  },
+  robots: {
+    index: false,
+    follow: true,
+  },
 }
 
 export default function CookiesPage() {

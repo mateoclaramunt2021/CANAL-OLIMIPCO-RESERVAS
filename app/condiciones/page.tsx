@@ -2,8 +2,16 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Condiciones Generales de Reserva — Canal Olímpico',
-  description: 'Condiciones generales de reserva del Restaurante Canal Olímpico en Castelldefels.',
+  title: 'Condiciones Generales de Reserva',
+  description: 'Condiciones generales de reserva del Restaurante Canal Olímpico en Castelldefels. Señal, cancelaciones, modificaciones y política de eventos.',
+  alternates: {
+    canonical: 'https://canalolimpicorestaurante.com/condiciones',
+  },
+  openGraph: {
+    title: 'Condiciones de Reserva — Restaurante Canal Olímpico Castelldefels',
+    description: 'Información sobre señales, cancelaciones y condiciones de reserva en el Restaurante Canal Olímpico.',
+    type: 'website',
+  },
 }
 
 export default function CondicionesPage() {

@@ -14,7 +14,7 @@ import { notifyVapiCallEnded } from '@/lib/telegram'
 //   4. cancelReservation  → Cancela una reserva por referencia
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://reservascanalolimpico.netlify.app'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'
 
 export async function POST(req: NextRequest) {
   try {

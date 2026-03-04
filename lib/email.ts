@@ -10,7 +10,7 @@ import nodemailer from 'nodemailer'
 const GMAIL_USER = process.env.GMAIL_USER || 'reservascanalolimpico@gmail.com'
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || ''
 const RESTAURANT_EMAIL = process.env.RESTAURANT_EMAIL || 'reservascanalolimpico@gmail.com'
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://reservascanalolimpico.netlify.app'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'
 
 function getTransporter() {
   if (!GMAIL_APP_PASSWORD) {

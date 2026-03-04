@@ -1,0 +1,22 @@
+# Robots.txt — Restaurante Canal Olímpico
+# https://canalolimpicorestaurante.com
+
+User-agent: *
+Allow: /
+
+# Bloquear rutas internas/admin
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /login
+Disallow: /employees
+Disallow: /schedules
+Disallow: /payments
+Disallow: /calendar
+Disallow: /menus
+Disallow: /settings
+Disallow: /tables
+Disallow: /api/
+Disallow: /elegir-platos/
+
+# Sitemap
+Sitemap: https://canalolimpicorestaurante.com/sitemap.xml

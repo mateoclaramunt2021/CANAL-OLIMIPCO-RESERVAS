@@ -40,6 +40,8 @@ function cleanup() {
 // ─── CORS allowed origin ─────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
   'https://reservascanalolimpico.netlify.app',
+  'https://canalolimpicorestaurante.com',
+  'https://www.canalolimpicorestaurante.com',
   'https://canal-olimpico.vercel.app',
   'http://localhost:3000',
 ]
@@ -58,7 +60,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.netlify.app",
+    "connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.netlify.app https://canalolimpicorestaurante.com",
     "frame-src 'self' https://js.stripe.com",
     "object-src 'none'",
     "base-uri 'self'",
@@ -182,6 +184,6 @@ export const config = {
      * - favicon.ico
      * - public files (images, etc.)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|gif|svg|webp|ico|css|js)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:jpg|jpeg|png|gif|svg|webp|ico|css|js|html|xml|json|txt)$).*)',
   ],
 }

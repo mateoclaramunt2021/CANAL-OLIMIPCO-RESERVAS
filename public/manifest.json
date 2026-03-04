@@ -1,0 +1,17 @@
+{
+  "name": "Restaurante Canal Olímpico — Castelldefels",
+  "short_name": "Canal Olímpico",
+  "description": "Restaurante con terraza y eventos en Castelldefels, Barcelona. Cocina mediterránea junto al Canal Olímpic. Reservas online.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#C4724E",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

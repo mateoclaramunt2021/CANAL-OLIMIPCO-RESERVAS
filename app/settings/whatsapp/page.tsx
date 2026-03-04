@@ -16,7 +16,7 @@ export default function WhatsAppSettingsPage() {
   const [showToken, setShowToken] = useState(false)
   const [step, setStep] = useState(0)
 
-  const webhookUrl = 'https://reservascanalolimpico.netlify.app/api/webhooks/whatsapp'
+  const webhookUrl = 'https://canalolimpicorestaurante.com/api/webhooks/whatsapp'
 
   useEffect(() => {
     loadSettings()
