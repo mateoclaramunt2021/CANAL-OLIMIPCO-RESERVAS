@@ -51,8 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [authChecked, setAuthChecked] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(true) // default true to avoid flash
 
   // ── Detect desktop vs tablet/mobile ──
   useEffect(() => {
@@ -62,17 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // ── Auth guard: check cookie (no JS-dependency on Supabase client) ──
-  useEffect(() => {
-    // Check if the sb-logged-in cookie exists
-    const hasAuthCookie = document.cookie.split(';').some(c => c.trim().startsWith('sb-logged-in='))
-    if (!hasAuthCookie) {
-      // No cookie = not logged in, redirect to login
-      window.location.href = '/login'
-    } else {
-      setAuthChecked(true)
-    }
-  }, [])
+  // Auth is already enforced by middleware (cookie check) — no need for client-side guard
 
   useEffect(() => { setSidebarOpen(false) }, [pathname])
 
@@ -82,27 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('keydown', handleEsc)
   }, [])
 
-  if (!authChecked) {
-    return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#f5f3ee', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '40px', height: '40px', border: '3px solid #B08D57', borderTopColor: 'transparent',
-            borderRadius: '50%', margin: '0 auto 12px',
-            animation: 'spin 1s linear infinite',
-          }} />
-          <p style={{ fontSize: '14px', color: '#8a8578' }}>Verificando sesión...</p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-        </div>
-      </div>
-    )
-  }
-
   const handleLogout = () => {
-    // Server-side logout (clears cookies, works without JS)
     window.location.href = '/api/auth/logout'
   }
 
