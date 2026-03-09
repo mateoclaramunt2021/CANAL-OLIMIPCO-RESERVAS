@@ -1076,8 +1076,8 @@ export default function Home() {
           </div>
           <div className="foot__line" />
           <div className="foot__bottom">
+            <a href="/login" className="foot__admin">Panel</a>
             <p>© {new Date().getFullYear()} Canal Olímpico · Dalia Grup — Todos los derechos reservados</p>
-            <Link href="/login" className="foot__admin">Panel</Link>
           </div>
         </div>
       </footer>
