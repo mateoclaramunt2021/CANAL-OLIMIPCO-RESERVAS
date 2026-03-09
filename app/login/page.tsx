@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LOGIN — 100% inline styles for maximum tablet/TPV browser compatibility
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -45,7 +47,6 @@ export default function Login() {
       if (error) {
         setError(error.message)
       } else if (data.user) {
-        // Login successful, redirect to dashboard
         router.push('/dashboard')
       }
     } catch (err) {
@@ -56,76 +57,181 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg">
-            <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center">
-              <span className="text-transparent bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text font-bold text-xl">CO</span>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #1e40af 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      margin: 0,
+    }}>
+      <div style={{
+        maxWidth: '420px',
+        width: '100%',
+        background: '#ffffff',
+        borderRadius: '24px',
+        boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+        padding: '40px 32px',
+        border: '1px solid rgba(255,255,255,0.3)',
+      }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+            borderRadius: '50%',
+            margin: '0 auto 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 8px 24px rgba(245,158,11,0.3)',
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              background: '#ffffff',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <span style={{
+                fontWeight: 700,
+                fontSize: '20px',
+                color: '#4f46e5',
+              }}>CO</span>
             </div>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">Gestión de Reservas</h1>
-          <h2 className="text-lg text-slate-700 font-semibold">Canal Olímpico</h2>
-          <div className="mt-4 w-24 h-1 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mx-auto rounded-full shadow-sm"></div>
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: 700,
+            color: '#4f46e5',
+            margin: '0 0 8px',
+          }}>Gestión de Reservas</h1>
+          <h2 style={{
+            fontSize: '18px',
+            color: '#334155',
+            fontWeight: 600,
+            margin: 0,
+          }}>Canal Olímpico</h2>
+          <div style={{
+            marginTop: '16px',
+            width: '96px',
+            height: '4px',
+            background: 'linear-gradient(90deg, #f59e0b, #ef4444)',
+            borderRadius: '4px',
+            margin: '16px auto 0',
+          }} />
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
+        {/* Form */}
+        <form onSubmit={handleLogin}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm shadow-sm">
+            <div style={{
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#b91c1c',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              fontSize: '14px',
+              marginBottom: '20px',
+            }}>
               {error}
             </div>
           )}
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
+          <div style={{ marginBottom: '20px' }}>
+            <label htmlFor="email" style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#334155',
+              marginBottom: '8px',
+            }}>
               Correo Electrónico
             </label>
-            <Input
+            <input
               id="email"
               type="email"
               placeholder="usuario@canalolimpico.com"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                setError('')
-              }}
-              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm shadow-sm"
+              onChange={(e) => { setEmail(e.target.value); setError('') }}
               required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #cbd5e1',
+                borderRadius: '12px',
+                fontSize: '16px',
+                outline: 'none',
+                background: '#ffffff',
+                boxSizing: 'border-box',
+                WebkitAppearance: 'none',
+              }}
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">
+          <div style={{ marginBottom: '24px' }}>
+            <label htmlFor="password" style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#334155',
+              marginBottom: '8px',
+            }}>
               Contraseña
             </label>
-            <Input
+            <input
               id="password"
               type="password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                setError('')
-              }}
-              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white/80 backdrop-blur-sm shadow-sm"
+              onChange={(e) => { setPassword(e.target.value); setError('') }}
               required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: '1px solid #cbd5e1',
+                borderRadius: '12px',
+                fontSize: '16px',
+                outline: 'none',
+                background: '#ffffff',
+                boxSizing: 'border-box',
+                WebkitAppearance: 'none',
+              }}
             />
           </div>
 
-          <Button
+          <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 hover:from-blue-700 hover:via-purple-700 hover:to-blue-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl"
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              background: loading ? '#93a3b8' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
+              color: '#ffffff',
+              fontWeight: 600,
+              fontSize: '16px',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
+              opacity: loading ? 0.7 : 1,
+              WebkitAppearance: 'none',
+            }}
           >
             {loading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
-          </Button>
+          </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-slate-600 font-medium">
+        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+          <p style={{ fontSize: '14px', color: '#64748b', fontWeight: 500, margin: '0 0 4px' }}>
             Sistema de Gestión Empresarial Premium
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
             Versión 1.0.0
           </p>
         </div>
