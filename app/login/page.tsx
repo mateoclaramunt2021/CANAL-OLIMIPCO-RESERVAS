@@ -40,21 +40,48 @@ export default function Login() {
 
     setLoading(true)
     try {
+      // Test: can we reach Supabase at all?
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) {
+        setError('ERROR CONFIG: NEXT_PUBLIC_SUPABASE_URL no está configurada')
+        setLoading(false)
+        return
+      }
+
       const result = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim()
       })
 
       if (result.error) {
-        setError(result.error.message || 'Error de autenticación')
+        // Show detailed error for debugging
+        setError(`Auth error: ${result.error.message} (${result.error.status || 'no status'})`)
       } else if (result.data && result.data.user) {
+        // Try saving session manually before redirect
+        try {
+          if (result.data.session) {
+            // Force persist the session
+            await supabase.auth.setSession({
+              access_token: result.data.session.access_token,
+              refresh_token: result.data.session.refresh_token,
+            })
+          }
+        } catch (sessionErr) {
+          // Session save failed but we still have the token in memory
+          console.warn('Session persist warning:', sessionErr)
+        }
+        // Use full page navigation (not SPA router) for max compatibility
         window.location.href = '/dashboard'
       } else {
-        setError('No se pudo iniciar sesión')
+        setError('Login OK pero no se recibió usuario. Respuesta: ' + JSON.stringify(result.data).substring(0, 200))
       }
     } catch (err: any) {
       console.error('Login error:', err)
-      setError(err && err.message ? err.message : 'Error inesperado. Por favor, inténtalo de nuevo.')
+      // Show the full error for debugging on tablet
+      const msg = err && typeof err === 'object' 
+        ? (err.message || JSON.stringify(err).substring(0, 300))
+        : String(err)
+      setError('Error de conexión: ' + msg)
     } finally {
       setLoading(false)
     }
