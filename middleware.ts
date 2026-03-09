@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildUrl } from '@/lib/url'
 
 /* ═══════════════════════════════════════════════════════════════════════════
    CANAL OLÍMPICO — Security Middleware
@@ -136,7 +137,7 @@ export function middleware(req: NextRequest) {
   if (PROTECTED_PATHS.some(p => pathname.startsWith(p))) {
     const hasAuth = req.cookies.has('sb-access-token')
     if (!hasAuth) {
-      const loginUrl = new URL('/login', req.url)
+      const loginUrl = buildUrl('/login', req)
       return NextResponse.redirect(loginUrl)
     }
   }

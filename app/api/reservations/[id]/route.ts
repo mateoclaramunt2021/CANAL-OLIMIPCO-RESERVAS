@@ -15,6 +15,9 @@ const updateSchema = z.object({
   menu_code: z.string().optional(),
   menu_payload: z.record(z.string(), z.any()).optional(),
   canceled_reason: z.string().optional(),
+  total_amount: z.number().min(0).optional(),
+  deposit_amount: z.number().min(0).optional(),
+  notas: z.string().optional(),
 })
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

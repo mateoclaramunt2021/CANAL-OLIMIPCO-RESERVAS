@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendText } from '@/lib/whatsapp'
+import { buildUrl } from '@/lib/url'
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,7 +10,7 @@ export async function POST(req: NextRequest) {
     const message = (form.get('message') as string)?.trim()
 
     if (!phone || !message) {
-      return NextResponse.redirect(new URL(`/dashboard/whatsapp?phone=${phone || ''}&error=Mensaje+vacío`, req.url))
+      return NextResponse.redirect(buildUrl(`/dashboard/whatsapp?phone=${phone || ''}&error=Mensaje+vacío`, req))
     }
 
     // Send via WhatsApp API
@@ -30,15 +31,15 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    return NextResponse.redirect(new URL(`/dashboard/whatsapp?phone=${encodeURIComponent(phone)}&ok=enviado`, req.url))
+    return NextResponse.redirect(buildUrl(`/dashboard/whatsapp?phone=${encodeURIComponent(phone)}&ok=enviado`, req))
   } catch (err: any) {
     console.error('[API conversations send]', err)
     const phone = ''
     try {
       const form = await req.formData()
-      return NextResponse.redirect(new URL(`/dashboard/whatsapp?phone=${form.get('phone') || ''}&error=${encodeURIComponent(err.message)}`, req.url))
+      return NextResponse.redirect(buildUrl(`/dashboard/whatsapp?phone=${form.get('phone') || ''}&error=${encodeURIComponent(err.message)}`, req))
     } catch {
-      return NextResponse.redirect(new URL(`/dashboard/whatsapp?error=${encodeURIComponent(err.message)}`, req.url))
+      return NextResponse.redirect(buildUrl(`/dashboard/whatsapp?error=${encodeURIComponent(err.message)}`, req))
     }
   }
 }

@@ -494,10 +494,10 @@ select.rf__input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg
 .foot__badge{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;color:var(--foot-muted);padding:6px 14px;border:1px solid rgba(255,255,255,.08);border-radius:var(--radius-full)}
 .foot__badge svg{width:14px;height:14px;stroke:var(--gold);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .foot__line{height:1px;background:linear-gradient(90deg,transparent,rgba(196,168,130,.15),transparent)}
-.foot__bottom{display:flex;justify-content:space-between;align-items:center;padding:20px 0;flex-wrap:wrap;gap:10px}
+.foot__bottom{display:flex;justify-content:space-between;align-items:center;padding:24px 0 32px;flex-wrap:wrap;gap:14px}
 .foot__bottom p{font-size:.75rem;color:var(--foot-muted);margin:0}
-.foot__admin{font-size:.72rem;color:var(--foot-muted)!important;opacity:.3;transition:opacity .25s,color .25s}
-.foot__admin:hover{opacity:1;color:var(--gold-hover)!important}
+.foot__admin{font-size:1rem;color:var(--foot-muted)!important;opacity:.45;transition:opacity .25s,color .25s;padding:10px 22px;border:1px solid rgba(196,168,130,.25);border-radius:8px;margin-bottom:12px;display:inline-block;text-decoration:none}
+.foot__admin:hover{opacity:1;color:var(--gold-hover)!important;border-color:var(--gold)}
 @media(max-width:768px){.foot__grid{grid-template-columns:1fr;gap:28px;text-align:center}.foot__bottom{flex-direction:column;text-align:center}.foot__social{justify-content:center}.foot__badges{justify-content:center}}
 
 /* ═══ STICKY MOBILE CTA ══════════════════════════════════════════════════════ */

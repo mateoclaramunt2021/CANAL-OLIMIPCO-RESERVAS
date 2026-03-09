@@ -22,15 +22,16 @@ const eventLabels: Record<string, string> = {
 const menuLabels: Record<string, string> = {
   menu_grupo_34: 'Menú Grupo 34€', menu_grupo_29: 'Menú Grupo 29€',
   menu_infantil: 'Menú Infantil 14,50€', menu_pica_34: 'Menú Pica-Pica 34€',
-  menu_pica_30: 'Menú Pica-Pica 30€',
+  menu_pica_30: 'Menú Pica-Pica 30€', menu_padres_38: 'Menú Padres/Adultos 38€',
 }
 
 export default async function ReservationDetail({ params, searchParams }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ ok?: string; error?: string }>
+  searchParams: Promise<{ ok?: string; error?: string; edit?: string }>
 }) {
   const { id } = await params
   const sp = await searchParams
+  const isEditing = sp.edit === 'true'
 
   // Fetch reservation + related data
   const { data: reservation, error: resErr } = await supabaseAdmin
@@ -51,18 +52,20 @@ export default async function ReservationDetail({ params, searchParams }: {
     )
   }
 
-  const [messagesRes, callsRes, paymentsRes, dishSummaryRes] = await Promise.all([
+  const [messagesRes, callsRes, paymentsRes, dishSummaryRes, tablesRes] = await Promise.all([
     supabaseAdmin.from('messages').select('*').eq('reservation_id', id).order('created_at', { ascending: true }),
     supabaseAdmin.from('call_logs').select('*').eq('reservation_id', id).order('created_at', { ascending: true }),
     supabaseAdmin.from('payments').select('*').eq('reservation_id', id).order('created_at', { ascending: true }),
     reservation.menu_code && ['menu_grupo_34', 'menu_grupo_29', 'menu_infantil'].includes(reservation.menu_code)
       ? supabaseAdmin.from('dish_selections').select('*').eq('reservation_id', id)
       : Promise.resolve({ data: null }),
+    isEditing ? supabaseAdmin.from('tables').select('id, name, capacity, zone').order('name') : Promise.resolve({ data: null }),
   ])
 
   const messages = messagesRes.data || []
   const callLogs = callsRes.data || []
   const payments = paymentsRes.data || []
+  const tables = (tablesRes as any)?.data || []
 
   const fechaFormatted = reservation.fecha
     ? new Date(reservation.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -76,6 +79,10 @@ export default async function ReservationDetail({ params, searchParams }: {
   const fieldLabel = { fontSize: '10px', fontWeight: 600, color: '#8a8578', textTransform: 'uppercase' as const, letterSpacing: '0.05em', margin: 0 }
   const fieldValue = { fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginTop: '4px', margin: '4px 0 0' }
   const btnBase = { display: 'block', width: '100%', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' as const, border: 'none', cursor: 'pointer', textDecoration: 'none', color: '#fff', boxSizing: 'border-box' as const }
+
+  // Input style for edit mode
+  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #d4c9b0', fontSize: '14px', fontWeight: 500 as const, color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' as const }
+  const selectStyle = { ...inputStyle, appearance: 'auto' as const }
 
   return (
     <DashboardLayout>
@@ -94,9 +101,20 @@ export default async function ReservationDetail({ params, searchParams }: {
               </p>
             </div>
           </div>
-          <span style={{ padding: '6px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 600, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
-            {statusLabels[reservation.status] || reservation.status}
-          </span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ padding: '6px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 600, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+              {statusLabels[reservation.status] || reservation.status}
+            </span>
+            {!isEditing ? (
+              <a href={`/reservations/${id}?edit=true`} style={{ padding: '8px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: 600, background: '#B08D57', color: '#fff', textDecoration: 'none', border: 'none' }}>
+                ✏️ Editar
+              </a>
+            ) : (
+              <a href={`/reservations/${id}`} style={{ padding: '8px 18px', borderRadius: '12px', fontSize: '13px', fontWeight: 600, background: '#78716c', color: '#fff', textDecoration: 'none', border: 'none' }}>
+                ✕ Cancelar
+              </a>
+            )}
+          </div>
         </div>
 
         {sp.ok && (
@@ -113,9 +131,108 @@ export default async function ReservationDetail({ params, searchParams }: {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
           {/* Fallback 2-col on wider screens via inline media query won't work without JS, so we use single column */}
 
-          {/* ── Reservation Details ── */}
+          {/* ── Reservation Details / Edit Form ── */}
           <div style={card}>
-            <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1a1a1a', margin: '0 0 16px' }}>Información de la Reserva</h2>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1a1a1a', margin: '0 0 16px' }}>
+              {isEditing ? '✏️ Editar Reserva' : 'Información de la Reserva'}
+            </h2>
+
+            {isEditing ? (
+              <form method="POST" action="/api/reservations/action">
+                <input type="hidden" name="_action" value="edit" />
+                <input type="hidden" name="id" value={id} />
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                  {/* Cliente */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Cliente</label>
+                    <input name="customer_name" type="text" defaultValue={reservation.customer_name || ''} style={inputStyle} />
+                  </div>
+                  {/* Teléfono */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Teléfono</label>
+                    <input name="customer_phone" type="tel" defaultValue={reservation.customer_phone || ''} style={inputStyle} />
+                  </div>
+                  {/* Email */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Email</label>
+                    <input name="customer_email" type="email" defaultValue={reservation.customer_email || ''} style={inputStyle} />
+                  </div>
+                  {/* Tipo evento */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Tipo</label>
+                    <select name="event_type" defaultValue={reservation.event_type || ''} style={selectStyle}>
+                      {Object.entries(eventLabels).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Fecha */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Fecha</label>
+                    <input name="fecha" type="date" defaultValue={reservation.fecha || ''} style={inputStyle} />
+                  </div>
+                  {/* Hora */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Hora inicio</label>
+                    <input name="hora_inicio" type="time" defaultValue={reservation.hora_inicio?.substring(0, 5) || ''} style={inputStyle} />
+                  </div>
+                  {/* Personas */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Personas</label>
+                    <input name="personas" type="number" min="1" defaultValue={reservation.personas || ''} style={inputStyle} />
+                  </div>
+                  {/* Mesa */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Mesa</label>
+                    {tables.length > 0 ? (
+                      <select name="table_id" defaultValue={reservation.table_id || ''} style={selectStyle}>
+                        <option value="">Sin asignar</option>
+                        {tables.map((t: any) => (
+                          <option key={t.id} value={t.id}>{t.name} ({t.capacity} pax) {t.zone ? `— ${t.zone}` : ''}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input name="table_id" type="text" defaultValue={reservation.table_id || ''} style={inputStyle} />
+                    )}
+                  </div>
+                  {/* Menú */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Menú</label>
+                    <select name="menu_code" defaultValue={reservation.menu_code || ''} style={selectStyle}>
+                      <option value="">N/A</option>
+                      {Object.entries(menuLabels).map(([k, v]) => (
+                        <option key={k} value={k}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {/* Total */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Total (€)</label>
+                    <input name="total_amount" type="number" step="0.01" min="0" defaultValue={reservation.total_amount || ''} style={inputStyle} />
+                  </div>
+                  {/* Señal / Depósito */}
+                  <div style={fieldBox}>
+                    <label style={fieldLabel}>Señal / Depósito (€)</label>
+                    <input name="deposit_amount" type="number" step="0.01" min="0" defaultValue={reservation.deposit_amount || ''} style={inputStyle} />
+                  </div>
+                  {/* Notas */}
+                  <div style={{ ...fieldBox, gridColumn: '1 / -1' }}>
+                    <label style={fieldLabel}>Notas</label>
+                    <input name="notas" type="text" defaultValue={reservation.notas || ''} style={inputStyle} placeholder="Notas internas sobre la reserva..." />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+                  <button type="submit" style={{ padding: '14px 32px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #B08D57, #96784a)', color: '#fff', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}>
+                    💾 Guardar Cambios
+                  </button>
+                  <a href={`/reservations/${id}`} style={{ padding: '14px 32px', borderRadius: '12px', border: '1px solid #d4c9b0', background: '#fff', color: '#5c5549', fontSize: '15px', fontWeight: 600, textDecoration: 'none', textAlign: 'center' }}>
+                    Cancelar
+                  </a>
+                </div>
+              </form>
+            ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
               {reservation.reservation_number && (
                 <div style={{ padding: '12px', background: '#fdf6e8', borderRadius: '12px', border: '1px solid #e8d5b2', gridColumn: '1 / -1' }}>
@@ -141,7 +258,14 @@ export default async function ReservationDetail({ params, searchParams }: {
                 </p>
               </div>
               <div style={fieldBox}><p style={fieldLabel}>Límite de Pago</p><p style={fieldValue}>{reservation.payment_deadline ? new Date(reservation.payment_deadline).toLocaleString('es-ES') : 'N/A'}</p></div>
+              {reservation.notas && (
+                <div style={{ ...fieldBox, gridColumn: '1 / -1' }}>
+                  <p style={fieldLabel}>Notas</p>
+                  <p style={fieldValue}>{reservation.notas}</p>
+                </div>
+              )}
             </div>
+            )}
             {reservation.canceled_reason && (
               <div style={{ marginTop: '16px', padding: '12px', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fecaca' }}>
                 <p style={{ fontSize: '10px', fontWeight: 600, color: '#ef4444', textTransform: 'uppercase' }}>Motivo de Cancelación</p>

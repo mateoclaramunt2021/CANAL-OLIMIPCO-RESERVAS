@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { buildUrl } from '@/lib/url'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function POST(req: NextRequest) {
     const pin = form.get('pin') as string || undefined
 
     if (!employee_id) {
-      return NextResponse.redirect(new URL('/schedules?tab=fichar&error=Empleado+obligatorio', req.url))
+      return NextResponse.redirect(buildUrl('/schedules?tab=fichar&error=Empleado+obligatorio', req))
     }
 
     // Verify employee
@@ -19,13 +20,13 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (empErr || !emp) {
-      return NextResponse.redirect(new URL('/schedules?tab=fichar&error=Empleado+no+encontrado', req.url))
+      return NextResponse.redirect(buildUrl('/schedules?tab=fichar&error=Empleado+no+encontrado', req))
     }
     if (!emp.active) {
-      return NextResponse.redirect(new URL('/schedules?tab=fichar&error=Empleado+no+activo', req.url))
+      return NextResponse.redirect(buildUrl('/schedules?tab=fichar&error=Empleado+no+activo', req))
     }
     if (emp.pin && emp.pin !== pin) {
-      return NextResponse.redirect(new URL('/schedules?tab=fichar&error=PIN+incorrecto', req.url))
+      return NextResponse.redirect(buildUrl('/schedules?tab=fichar&error=PIN+incorrecto', req))
     }
 
     // Check open clock record
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
 
       const time = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
       return NextResponse.redirect(
-        new URL(`/schedules?tab=fichar&ok=${encodeURIComponent(`🏠 ${emp.name} — Salida registrada a las ${time}`)}`, req.url)
+        buildUrl(`/schedules?tab=fichar&ok=${encodeURIComponent(`🏠 ${emp.name} — Salida registrada a las ${time}`)}`, req)
       )
     }
 
@@ -58,10 +59,10 @@ export async function POST(req: NextRequest) {
 
     const time = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
     return NextResponse.redirect(
-      new URL(`/schedules?tab=fichar&ok=${encodeURIComponent(`✅ ${emp.name} — Entrada registrada a las ${time}`)}`, req.url)
+      buildUrl(`/schedules?tab=fichar&ok=${encodeURIComponent(`✅ ${emp.name} — Entrada registrada a las ${time}`)}`, req)
     )
   } catch (err: any) {
     console.error('[clock/action]', err)
-    return NextResponse.redirect(new URL('/schedules?tab=fichar&error=' + encodeURIComponent(err.message), req.url))
+    return NextResponse.redirect(buildUrl('/schedules?tab=fichar&error=' + encodeURIComponent(err.message), req))
   }
 }

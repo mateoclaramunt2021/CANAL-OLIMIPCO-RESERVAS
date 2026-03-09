@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { buildUrl } from '@/lib/url'
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,9 +21,9 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error
 
-    return NextResponse.redirect(new URL('/settings/whatsapp?ok=guardado', req.url))
+    return NextResponse.redirect(buildUrl('/settings/whatsapp?ok=guardado', req))
   } catch (err: any) {
     console.error('[API settings form]', err)
-    return NextResponse.redirect(new URL(`/settings/whatsapp?error=${encodeURIComponent(err.message)}`, req.url))
+    return NextResponse.redirect(buildUrl(`/settings/whatsapp?error=${encodeURIComponent(err.message)}`, req))
   }
 }

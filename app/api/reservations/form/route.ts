@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildUrl, getBaseUrl } from '@/lib/url'
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
     const menuCode = form.get('menu_code') as string || ''
 
     if (!nombre || !telefono || !fecha || !hora) {
-      return NextResponse.redirect(new URL('/reservations/new?error=Faltan+campos+obligatorios', req.url))
+      return NextResponse.redirect(buildUrl('/reservations/new?error=Faltan+campos+obligatorios', req))
     }
 
     const phone = telefono.startsWith('+') ? telefono : `+34${telefono.replace(/\s/g, '')}`
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
     if (menuCode && eventType !== 'RESERVA_NORMAL') body.menu_code = menuCode
 
     // Call internal API
-    const origin = req.nextUrl.origin
-    const res = await fetch(`${origin}/api/reservations`, {
+    const baseUrl = getBaseUrl(req)
+    const res = await fetch(`${baseUrl}/api/reservations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -39,12 +40,12 @@ export async function POST(req: NextRequest) {
     const data = await res.json()
 
     if (data.ok && data.reservation_id) {
-      return NextResponse.redirect(new URL(`/reservations/${data.reservation_id}`, req.url))
+      return NextResponse.redirect(buildUrl(`/reservations/${data.reservation_id}`, req))
     } else {
-      return NextResponse.redirect(new URL(`/reservations/new?error=${encodeURIComponent(data.error || 'Error creando reserva')}`, req.url))
+      return NextResponse.redirect(buildUrl(`/reservations/new?error=${encodeURIComponent(data.error || 'Error creando reserva')}`, req))
     }
   } catch (err: any) {
     console.error('[API reservations form]', err)
-    return NextResponse.redirect(new URL(`/reservations/new?error=${encodeURIComponent(err.message || 'Error interno')}`, req.url))
+    return NextResponse.redirect(buildUrl(`/reservations/new?error=${encodeURIComponent(err.message || 'Error interno')}`, req))
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { buildUrl } from '@/lib/url'
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
     const redirect = (msg?: string, err?: string) => {
       const base = `/schedules?tab=${tab}&week=${week || ''}`
       const qs = err ? `&error=${encodeURIComponent(err)}` : msg ? `&ok=${encodeURIComponent(msg)}` : ''
-      return NextResponse.redirect(new URL(base + qs, req.url))
+      return NextResponse.redirect(buildUrl(base + qs, req))
     }
 
     if (action === 'create') {
@@ -48,6 +49,6 @@ export async function POST(req: NextRequest) {
     return redirect(undefined, 'Acción no válida')
   } catch (err: any) {
     console.error('[shifts/action]', err)
-    return NextResponse.redirect(new URL('/schedules?error=' + encodeURIComponent(err.message), req.url))
+    return NextResponse.redirect(buildUrl('/schedules?error=' + encodeURIComponent(err.message), req))
   }
 }
