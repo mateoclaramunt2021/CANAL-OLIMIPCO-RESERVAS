@@ -167,19 +167,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logout */}
         <div style={{ padding: '16px', borderTop: '1px solid rgba(176,141,87,0.15)' }}>
-          <button
-            onClick={handleLogout}
+          <a
+            href="/api/auth/logout"
             style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
               padding: '12px 16px', borderRadius: '8px', fontSize: '14px',
               color: '#8a8578', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+              textDecoration: 'none',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(192,57,43,0.1)'; e.currentTarget.style.color = '#c0392b' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#8a8578' }}
           >
             <span style={{ fontSize: '18px' }}>🚪</span>
             Cerrar Sesión
-          </button>
+          </a>
         </div>
       </aside>
 
