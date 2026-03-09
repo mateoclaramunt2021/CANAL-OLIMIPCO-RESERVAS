@@ -1,70 +1,36 @@
-'use client'
-
-import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import { supabaseAdmin } from '@/lib/supabase'
 
-interface HealthCheck {
-  label: string
-  desc: string
-  icon: string
-  status: 'ok' | 'error' | 'checking'
-  detail: string
-}
+export const dynamic = 'force-dynamic'
 
-export default function SettingsPage() {
-  const [checks, setChecks] = useState<HealthCheck[]>([
-    { label: 'Supabase', desc: 'Base de datos y autenticación', icon: '🗄️', status: 'checking', detail: 'Comprobando...' },
-    { label: 'Stripe', desc: 'Pagos con tarjeta', icon: '💳', status: 'checking', detail: 'Comprobando...' },
-    { label: 'WhatsApp', desc: 'API de mensajería', icon: '💬', status: 'checking', detail: 'Comprobando...' },
-    { label: 'VAPI', desc: 'Asistente de voz IA', icon: '🎙️', status: 'checking', detail: 'Comprobando...' },
-  ])
+export default async function SettingsPage() {
+  // Server-side health checks
+  let supabaseOk = false
+  let supabaseDetail = 'Sin conexión'
+  try {
+    const { data, error } = await supabaseAdmin.from('reservations').select('id').limit(1)
+    if (!error) { supabaseOk = true; supabaseDetail = 'Conexión activa' }
+    else { supabaseDetail = error.message }
+  } catch { supabaseDetail = 'Error de conexión' }
 
-  useEffect(() => {
-    runChecks()
-  }, [])
+  let waOk = false
+  let waDetail = 'No configurado'
+  try {
+    const waToken = process.env.WHATSAPP_TOKEN
+    const waPhone = process.env.WHATSAPP_PHONE_NUMBER_ID
+    if (waToken && waPhone) { waOk = true; waDetail = 'Credenciales configuradas' }
+    else { waDetail = 'Falta WHATSAPP_TOKEN o PHONE_NUMBER_ID' }
+  } catch { /* noop */ }
 
-  const runChecks = async () => {
-    // Supabase
-    try {
-      const res = await fetch('/api/reservations?limit=1')
-      if (res.ok) {
-        updateCheck('Supabase', 'ok', 'Conexión activa')
-      } else {
-        updateCheck('Supabase', 'error', `HTTP ${res.status}`)
-      }
-    } catch {
-      updateCheck('Supabase', 'error', 'Sin conexión')
-    }
+  const stripeOk = !!process.env.STRIPE_SECRET_KEY
+  const vapiOk = !!process.env.VAPI_API_KEY
 
-    // Stripe
-    try {
-      const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-      updateCheck('Stripe', stripeKey ? 'ok' : 'error', stripeKey ? 'Clave configurada' : 'Clave no configurada (env)')
-    } catch {
-      updateCheck('Stripe', 'error', 'Error comprobando')
-    }
-
-    // WhatsApp — check via API test endpoint
-    try {
-      const waRes = await fetch('/api/settings/whatsapp-test', { method: 'POST' })
-      const waData = await waRes.json()
-      updateCheck('WhatsApp', waData.ok ? 'ok' : 'error', waData.ok ? `Conectado: ${waData.name || waData.phone || 'OK'}` : 'No configurado — Configurar →')
-    } catch {
-      updateCheck('WhatsApp', 'error', 'Error comprobando')
-    }
-
-    // VAPI
-    try {
-      const vapiKey = process.env.NEXT_PUBLIC_VAPI_KEY
-      updateCheck('VAPI', vapiKey ? 'ok' : 'error', vapiKey ? 'API Key configurada' : 'Configurado en servidor (env)')
-    } catch {
-      updateCheck('VAPI', 'error', 'Error comprobando')
-    }
-  }
-
-  const updateCheck = (label: string, status: HealthCheck['status'], detail: string) => {
-    setChecks(prev => prev.map(c => c.label === label ? { ...c, status, detail } : c))
-  }
+  const checks = [
+    { label: 'Supabase', desc: 'Base de datos y autenticación', icon: '🗄️', ok: supabaseOk, detail: supabaseDetail },
+    { label: 'Stripe', desc: 'Pagos con tarjeta', icon: '💳', ok: stripeOk, detail: stripeOk ? 'Clave configurada' : 'STRIPE_SECRET_KEY no configurada' },
+    { label: 'WhatsApp', desc: 'API de mensajería', icon: '💬', ok: waOk, detail: waDetail, href: '/settings/whatsapp' },
+    { label: 'VAPI', desc: 'Asistente de voz IA', icon: '🎙️', ok: vapiOk, detail: vapiOk ? 'API Key configurada' : 'VAPI_API_KEY no configurada' },
+  ]
 
   const envVars = [
     { key: 'NEXT_PUBLIC_SUPABASE_URL', desc: 'URL del proyecto Supabase' },
@@ -95,80 +61,75 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto w-full">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Configuración</h1>
-          <p className="text-slate-500 mt-1">Estado de servicios e información del sistema</p>
+      <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto', width: '100%' }}>
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a', margin: 0 }}>⚙️ Configuración</h1>
+          <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>Estado de servicios e información del sistema</p>
         </div>
 
         {/* Health Checks */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Estado de Servicios</h2>
-            <button onClick={runChecks} className="px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-200 transition-colors">🔄 Refrescar</button>
+        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#0f172a', margin: 0 }}>Estado de Servicios</h2>
+            <a href="/settings" style={{ padding: '6px 12px', background: '#f1f5f9', borderRadius: '8px', fontSize: '12px', fontWeight: 500, color: '#475569', textDecoration: 'none' }}>🔄 Refrescar</a>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             {checks.map(c => {
-              const isWhatsApp = c.label === 'WhatsApp'
-              const CardTag = isWhatsApp ? 'a' : 'div'
-              return (
-              <CardTag key={c.label} href={isWhatsApp ? '/settings/whatsapp' : undefined} className={`p-4 rounded-xl border-2 transition-all block ${isWhatsApp ? 'cursor-pointer hover:shadow-md' : ''} ${
-                c.status === 'ok' ? 'border-emerald-200 bg-emerald-50/50' :
-                c.status === 'error' ? 'border-red-200 bg-red-50/50' :
-                'border-slate-200 bg-slate-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{c.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-slate-900">{c.label}</h3>
-                      <span className={`w-3 h-3 rounded-full ${
-                        c.status === 'ok' ? 'bg-emerald-500' :
-                        c.status === 'error' ? 'bg-red-500' :
-                        'bg-slate-400 animate-pulse'
-                      }`} />
+              const inner = (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>{c.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{c.label}</h3>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: c.ok ? '#10b981' : '#ef4444', display: 'inline-block' }} />
                     </div>
-                    <p className="text-xs text-slate-500">{c.desc}</p>
-                    <p className={`text-xs mt-1 font-medium ${
-                      c.status === 'ok' ? 'text-emerald-600' :
-                      c.status === 'error' ? 'text-red-600' :
-                      'text-slate-400'
-                    }`}>{c.detail}</p>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0' }}>{c.desc}</p>
+                    <p style={{ fontSize: '12px', marginTop: '4px', fontWeight: 500, color: c.ok ? '#059669' : '#dc2626' }}>{c.detail}</p>
                   </div>
                 </div>
-              </CardTag>
+              )
+              const style = {
+                padding: '16px',
+                borderRadius: '12px',
+                border: `2px solid ${c.ok ? '#a7f3d0' : '#fecaca'}`,
+                background: c.ok ? 'rgba(236,253,245,0.5)' : 'rgba(254,242,242,0.5)',
+                display: 'block',
+                textDecoration: 'none',
+              }
+              return c.href ? (
+                <a key={c.label} href={c.href} style={style}>{inner}</a>
+              ) : (
+                <div key={c.label} style={style}>{inner}</div>
               )
             })}
           </div>
         </div>
 
         {/* Restaurant Info */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">📍 Información del Restaurante</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#0f172a', marginBottom: '16px', marginTop: 0 }}>📍 Información del Restaurante</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
             {restaurantInfo.map(info => (
-              <div key={info.label} className="p-3 bg-slate-50 rounded-xl">
-                <p className="text-xs text-slate-500">{info.label}</p>
-                <p className="text-sm font-semibold text-slate-900 mt-0.5">{info.value}</p>
+              <div key={info.label} style={{ padding: '12px', background: '#f8fafc', borderRadius: '12px' }}>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>{info.label}</p>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', margin: '4px 0 0' }}>{info.value}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Environment Variables Reference */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">🔑 Variables de Entorno</h2>
-          <p className="text-sm text-slate-500 mb-4">Variables necesarias en Vercel / .env.local</p>
-          <div className="space-y-2">
-            {envVars.map(v => (
-              <div key={v.key} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                <div>
-                  <code className="text-xs font-mono text-slate-800 bg-slate-200 px-2 py-0.5 rounded">{v.key}</code>
-                  <p className="text-xs text-slate-500 mt-1">{v.desc}</p>
-                </div>
+        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#0f172a', marginBottom: '16px', marginTop: 0 }}>🔑 Variables de Entorno</h2>
+          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>Variables necesarias en Vercel / .env.local</p>
+          {envVars.map(v => (
+            <div key={v.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '12px', marginBottom: '8px' }}>
+              <div>
+                <code style={{ fontSize: '12px', fontFamily: 'monospace', color: '#1e293b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>{v.key}</code>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>{v.desc}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </DashboardLayout>

@@ -1,323 +1,204 @@
-'use client'
-
-import { useEffect, useState, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
+import { supabaseAdmin } from '@/lib/supabase'
 
-interface Employee {
-  id: string
-  name: string
-  role: string
-  phone: string | null
-  email: string | null
-  pin: string | null
-  active: boolean
-  created_at: string
-}
+export const dynamic = 'force-dynamic'
 
 const roleOptions = ['camarero', 'cocinero', 'barra', 'encargado', 'limpieza', 'dj', 'seguridad', 'otro']
 
-export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export default async function EmployeesPage({ searchParams }: { searchParams: Promise<{ action?: string; id?: string; ok?: string; error?: string; confirm_delete?: string }> }) {
+  const params = await searchParams
 
-  // Form state
-  const [form, setForm] = useState({ name: '', role: 'camarero', phone: '', email: '', pin: '' })
+  const { data: employees } = await supabaseAdmin
+    .from('employees')
+    .select('*')
+    .order('name', { ascending: true })
 
-  const fetchEmployees = useCallback(async () => {
-    try {
-      setError(null)
-      const res = await fetch('/api/employees')
-      if (!res.ok) throw new Error('Error al cargar empleados')
-      const data = await res.json()
-      setEmployees(Array.isArray(data) ? data : [])
-    } catch (err: any) {
-      setError(err.message)
-    }
-    setLoading(false)
-  }, [])
+  const list = employees || []
+  const activeCount = list.filter((e: any) => e.active).length
 
-  useEffect(() => { fetchEmployees() }, [fetchEmployees])
-
-  const resetForm = () => {
-    setForm({ name: '', role: 'camarero', phone: '', email: '', pin: '' })
-    setEditingId(null)
-    setShowForm(false)
-  }
-
-  const handleEdit = (emp: Employee) => {
-    setForm({
-      name: emp.name,
-      role: emp.role,
-      phone: emp.phone || '',
-      email: emp.email || '',
-      pin: emp.pin || '',
-    })
-    setEditingId(emp.id)
-    setShowForm(true)
-  }
-
-  const handleSave = async () => {
-    if (!form.name.trim()) return
-    setSaving(true)
-    setError(null)
-    try {
-      const method = editingId ? 'PATCH' : 'POST'
-      const body = editingId ? { id: editingId, ...form } : form
-      const res = await fetch('/api/employees', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || 'Error al guardar')
-      }
-      resetForm()
-      fetchEmployees()
-    } catch (err: any) {
-      setError(err.message)
-    }
-    setSaving(false)
-  }
-
-  const handleToggleActive = async (emp: Employee) => {
-    try {
-      await fetch('/api/employees', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: emp.id, active: !emp.active }),
-      })
-      fetchEmployees()
-    } catch (err: any) {
-      setError(err.message)
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar este empleado? Se borrarán sus turnos y fichajes.')) return
-    try {
-      const res = await fetch(`/api/employees?id=${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Error al eliminar')
-      fetchEmployees()
-    } catch (err: any) {
-      setError(err.message)
-    }
-  }
-
-  const activeCount = employees.filter(e => e.active).length
+  const showForm = params.action === 'new' || params.action === 'edit'
+  const editingEmp = params.action === 'edit' && params.id
+    ? list.find((e: any) => e.id === params.id)
+    : null
+  const confirmDelete = params.confirm_delete
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 w-full max-w-5xl mx-auto">
+      <div style={{ padding: '16px', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-light tracking-tight" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#1a1a1a' }}>
+            <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '28px', fontWeight: 300, color: '#1a1a1a', margin: 0 }}>
               Empleados
             </h1>
-            <p className="text-xs sm:text-sm mt-1" style={{ color: '#8a8578' }}>
-              {employees.length} empleados · {activeCount} activos
+            <p style={{ color: '#8a8578', fontSize: '13px', marginTop: '4px' }}>
+              {list.length} empleados · {activeCount} activos
             </p>
           </div>
-          <button
-            onClick={() => { resetForm(); setShowForm(true) }}
-            className="px-4 py-2.5 text-sm font-medium text-white rounded-lg shadow-sm transition-all hover:shadow-md whitespace-nowrap"
-            style={{ background: 'linear-gradient(135deg, #B08D57, #96784a)' }}
+          <a
+            href="/employees?action=new"
+            style={{ padding: '10px 16px', fontSize: '14px', fontWeight: 500, color: '#fff', borderRadius: '8px', background: 'linear-gradient(135deg, #B08D57, #96784a)', textDecoration: 'none', whiteSpace: 'nowrap' }}
           >
             + Nuevo Empleado
-          </button>
+          </a>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm">
-            ⚠️ {error}
+        {params.ok && (
+          <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', border: '1px solid #c0e0d0', background: 'rgba(39,174,96,0.05)', color: '#27ae60', fontSize: '14px' }}>
+            ✅ Empleado {params.ok}
+          </div>
+        )}
+        {params.error && (
+          <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '12px', border: '1px solid #e8c9c9', background: '#fef2f2', color: '#c0392b', fontSize: '14px' }}>
+            ⚠️ {params.error}
           </div>
         )}
 
-        {/* ── Form Modal ── */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => resetForm()}>
-            <div
-              className="rounded-2xl p-6 w-full max-w-md shadow-xl"
-              style={{ background: '#faf9f6', border: '1px solid #e8e2d6' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <h2 className="text-xl font-light mb-5" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#1a1a1a' }}>
-                {editingId ? 'Editar Empleado' : 'Nuevo Empleado'}
-              </h2>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wider" style={{ color: '#8a8578' }}>Nombre *</label>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#d4c9b0', background: '#fff', color: '#1a1a1a' }}
-                    placeholder="Nombre completo"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wider" style={{ color: '#8a8578' }}>Rol</label>
-                  <select
-                    value={form.role}
-                    onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#d4c9b0', background: '#fff', color: '#1a1a1a' }}
-                  >
-                    {roleOptions.map(r => (
-                      <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium uppercase tracking-wider" style={{ color: '#8a8578' }}>Teléfono</label>
-                    <input
-                      type="tel"
-                      value={form.phone}
-                      onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2"
-                      style={{ borderColor: '#d4c9b0', background: '#fff', color: '#1a1a1a' }}
-                      placeholder="600123456"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium uppercase tracking-wider" style={{ color: '#8a8578' }}>PIN (4 dígitos)</label>
-                    <input
-                      type="text"
-                      value={form.pin}
-                      onChange={e => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                      className="w-full mt-1 px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 font-mono tracking-widest text-center"
-                      style={{ borderColor: '#d4c9b0', background: '#fff', color: '#1a1a1a' }}
-                      placeholder="••••"
-                      maxLength={4}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wider" style={{ color: '#8a8578' }}>Email</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2"
-                    style={{ borderColor: '#d4c9b0', background: '#fff', color: '#1a1a1a' }}
-                    placeholder="email@ejemplo.com"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={resetForm}
-                  className="px-4 py-2 text-sm rounded-lg border transition-colors"
-                  style={{ borderColor: '#d4c9b0', color: '#5c5549' }}
-                >
+        {/* Delete confirmation */}
+        {confirmDelete && (() => {
+          const emp = list.find((e: any) => e.id === confirmDelete)
+          return emp ? (
+            <div style={{ marginBottom: '16px', padding: '16px', borderRadius: '12px', border: '2px solid #e8c9c9', background: '#fef2f2' }}>
+              <p style={{ color: '#c0392b', fontWeight: 600, marginBottom: '8px' }}>
+                ¿Eliminar a {emp.name}?
+              </p>
+              <p style={{ color: '#5c5549', fontSize: '13px', marginBottom: '12px' }}>
+                Se borrarán sus turnos y fichajes. Esta acción no se puede deshacer.
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <form method="POST" action="/api/employees/action">
+                  <input type="hidden" name="_action" value="delete" />
+                  <input type="hidden" name="id" value={confirmDelete} />
+                  <button type="submit" style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: '#fff', background: '#c0392b', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                    Sí, eliminar
+                  </button>
+                </form>
+                <a href="/employees" style={{ padding: '8px 16px', fontSize: '13px', color: '#5c5549', border: '1px solid #d4c9b0', borderRadius: '8px', textDecoration: 'none', display: 'inline-block' }}>
                   Cancelar
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !form.name.trim()}
-                  className="px-5 py-2 text-sm font-medium text-white rounded-lg transition-all disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #B08D57, #96784a)' }}
-                >
-                  {saving ? 'Guardando…' : editingId ? 'Actualizar' : 'Crear'}
-                </button>
+                </a>
               </div>
             </div>
+          ) : null
+        })()}
+
+        {/* ── Inline Form ── */}
+        {showForm && (
+          <div style={{ marginBottom: '24px', padding: '24px', borderRadius: '16px', background: '#faf9f6', border: '1px solid #e8e2d6' }}>
+            <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '20px', fontWeight: 300, color: '#1a1a1a', marginBottom: '20px' }}>
+              {editingEmp ? 'Editar Empleado' : 'Nuevo Empleado'}
+            </h2>
+            <form method="POST" action="/api/employees/action">
+              <input type="hidden" name="_action" value={editingEmp ? 'edit' : 'create'} />
+              {editingEmp && <input type="hidden" name="id" value={editingEmp.id} />}
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8a8578', display: 'block', marginBottom: '4px' }}>Nombre *</label>
+                <input name="name" type="text" required defaultValue={editingEmp?.name || ''} placeholder="Nombre completo"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8a8578', display: 'block', marginBottom: '4px' }}>Rol</label>
+                <select name="role" defaultValue={editingEmp?.role || 'camarero'}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }}>
+                  {roleOptions.map(r => (
+                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8a8578', display: 'block', marginBottom: '4px' }}>Teléfono</label>
+                  <input name="phone" type="tel" defaultValue={editingEmp?.phone || ''} placeholder="600123456"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8a8578', display: 'block', marginBottom: '4px' }}>PIN (4 dígitos)</label>
+                  <input name="pin" type="text" maxLength={4} defaultValue={editingEmp?.pin || ''} placeholder="····"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', fontFamily: 'monospace', textAlign: 'center', letterSpacing: '0.3em', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8a8578', display: 'block', marginBottom: '4px' }}>Email</label>
+                <input name="email" type="email" defaultValue={editingEmp?.email || ''} placeholder="email@ejemplo.com"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <a href="/employees" style={{ padding: '8px 16px', fontSize: '14px', borderRadius: '8px', border: '1px solid #d4c9b0', color: '#5c5549', textDecoration: 'none', display: 'inline-block' }}>
+                  Cancelar
+                </a>
+                <button type="submit" style={{ padding: '8px 20px', fontSize: '14px', fontWeight: 500, color: '#fff', borderRadius: '8px', background: 'linear-gradient(135deg, #B08D57, #96784a)', border: 'none', cursor: 'pointer' }}>
+                  {editingEmp ? 'Actualizar' : 'Crear'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
         {/* ── Employee List ── */}
-        {loading ? (
-          <div className="text-center py-16">
-            <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: '#B08D57', borderTopColor: 'transparent' }} />
-            <p className="text-sm mt-3" style={{ color: '#8a8578' }}>Cargando empleados…</p>
-          </div>
-        ) : employees.length === 0 ? (
-          <div className="text-center py-16 rounded-2xl border" style={{ background: '#faf9f6', borderColor: '#e8e2d6' }}>
-            <p className="text-4xl mb-3">👥</p>
-            <p className="text-lg font-light" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#5c5549' }}>
+        {list.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '64px 16px', borderRadius: '16px', border: '1px solid #e8e2d6', background: '#faf9f6' }}>
+            <p style={{ fontSize: '40px', marginBottom: '12px' }}>👥</p>
+            <p style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '18px', fontWeight: 300, color: '#5c5549' }}>
               Sin empleados registrados
             </p>
-            <p className="text-sm mt-1" style={{ color: '#8a8578' }}>
+            <p style={{ color: '#8a8578', fontSize: '14px', marginTop: '4px' }}>
               Añade tu primer empleado con el botón de arriba
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {employees.map(emp => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {list.map((emp: any) => (
               <div
                 key={emp.id}
-                className={`rounded-xl border p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 transition-all ${!emp.active ? 'opacity-50' : ''}`}
-                style={{ background: '#faf9f6', borderColor: '#e8e2d6' }}
+                style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: '12px', background: '#faf9f6', border: '1px solid #e8e2d6', opacity: emp.active ? 1 : 0.5 }}
               >
                 {/* Avatar + Info */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white font-medium text-sm"
-                    style={{ background: emp.active ? 'linear-gradient(135deg, #B08D57, #96784a)' : '#b0a898' }}
-                  >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 500, fontSize: '14px', flexShrink: 0, background: emp.active ? 'linear-gradient(135deg, #B08D57, #96784a)' : '#b0a898' }}>
                     {emp.name.charAt(0).toUpperCase()}
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate" style={{ color: '#1a1a1a' }}>{emp.name}</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className="text-[10px] uppercase font-medium px-2 py-0.5 rounded-full"
-                        style={{ background: 'rgba(176,141,87,0.1)', color: '#96784a' }}
-                      >
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontWeight: 500, fontSize: '14px', color: '#1a1a1a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.name}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                      <span style={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 500, padding: '2px 8px', borderRadius: '12px', background: 'rgba(176,141,87,0.1)', color: '#96784a' }}>
                         {emp.role}
                       </span>
-                      {emp.phone && (
-                        <span className="text-xs" style={{ color: '#8a8578' }}>📞 {emp.phone}</span>
-                      )}
-                      {emp.pin && (
-                        <span className="text-xs" style={{ color: '#8a8578' }}>🔑 PIN</span>
-                      )}
+                      {emp.phone && <span style={{ fontSize: '12px', color: '#8a8578' }}>📞 {emp.phone}</span>}
+                      {emp.pin && <span style={{ fontSize: '12px', color: '#8a8578' }}>🔑 PIN</span>}
                     </div>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleToggleActive(emp)}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-all"
-                    style={{
-                      borderColor: emp.active ? '#c0e0d0' : '#d4c9b0',
-                      color: emp.active ? '#27ae60' : '#8a8578',
-                      background: emp.active ? 'rgba(39,174,96,0.05)' : 'transparent',
-                    }}
-                  >
-                    {emp.active ? '✓ Activo' : '○ Inactivo'}
-                  </button>
-                  <button
-                    onClick={() => handleEdit(emp)}
-                    className="px-3 py-1.5 text-xs rounded-lg border transition-all"
-                    style={{ borderColor: '#d4c9b0', color: '#5c5549' }}
-                  >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <form method="POST" action="/api/employees/action" style={{ display: 'inline' }}>
+                    <input type="hidden" name="_action" value="toggle" />
+                    <input type="hidden" name="id" value={emp.id} />
+                    <input type="hidden" name="active" value={String(emp.active)} />
+                    <button type="submit" style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 500, borderRadius: '8px', border: `1px solid ${emp.active ? '#c0e0d0' : '#d4c9b0'}`, color: emp.active ? '#27ae60' : '#8a8578', background: emp.active ? 'rgba(39,174,96,0.05)' : 'transparent', cursor: 'pointer' }}>
+                      {emp.active ? '✓ Activo' : '○ Inactivo'}
+                    </button>
+                  </form>
+                  <a href={`/employees?action=edit&id=${emp.id}`} style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', border: '1px solid #d4c9b0', color: '#5c5549', textDecoration: 'none' }}>
                     Editar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(emp.id)}
-                    className="px-3 py-1.5 text-xs rounded-lg border transition-all hover:bg-red-50"
-                    style={{ borderColor: '#e8c9c9', color: '#c0392b' }}
-                  >
+                  </a>
+                  <a href={`/employees?confirm_delete=${emp.id}`} style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '8px', border: '1px solid #e8c9c9', color: '#c0392b', textDecoration: 'none' }}>
                     ✕
-                  </button>
+                  </a>
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        {/* Refresh link */}
+        <div style={{ textAlign: 'center', marginTop: '24px' }}>
+          <a href="/employees" style={{ color: '#B08D57', fontSize: '13px', textDecoration: 'none' }}>🔄 Actualizar</a>
+        </div>
       </div>
     </DashboardLayout>
   )

@@ -1,28 +1,7 @@
-'use client'
-
-import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
-import Link from 'next/link'
+import { supabaseAdmin } from '@/lib/supabase'
 
-interface Payment {
-  id: string
-  reservation_id: string
-  amount: number
-  method: string
-  status: string
-  stripe_session_id: string | null
-  created_at: string
-}
-
-interface PaymentWithReservation extends Payment {
-  reservations?: {
-    customer_name: string
-    customer_phone: string
-    fecha: string
-    event_type: string
-    personas: number
-  }
-}
+export const dynamic = 'force-dynamic'
 
 const methodLabels: Record<string, string> = {
   stripe: '💳 Stripe',
@@ -38,138 +17,132 @@ const statusLabels: Record<string, string> = {
   failed: 'Fallido',
 }
 
-const statusColors: Record<string, string> = {
-  paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  pending: 'bg-amber-100 text-amber-700 border-amber-200',
-  refunded: 'bg-blue-100 text-blue-700 border-blue-200',
-  failed: 'bg-red-100 text-red-700 border-red-200',
+const statusInline: Record<string, { bg: string; color: string; border: string }> = {
+  paid: { bg: '#d1fae5', color: '#047857', border: '#6ee7b7' },
+  pending: { bg: '#fef3c7', color: '#b45309', border: '#fcd34d' },
+  refunded: { bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
+  failed: { bg: '#fee2e2', color: '#b91c1c', border: '#fecaca' },
 }
 
-export default function PaymentsPage() {
-  const [payments, setPayments] = useState<PaymentWithReservation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'paid' | 'pending'>('all')
+export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
+  const params = await searchParams
+  const filter = params.filter || 'all'
 
-  useEffect(() => {
-    fetchPayments()
-  }, [])
+  const { data } = await supabaseAdmin
+    .from('payments')
+    .select('*, reservations(customer_name, customer_phone, fecha, event_type, personas)')
+    .order('created_at', { ascending: false })
+    .limit(200)
 
-  const fetchPayments = async () => {
-    try {
-      const res = await fetch('/api/payments')
-      const data = await res.json()
-      setPayments(Array.isArray(data) ? data : data.payments || [])
-    } catch {
-      setPayments([])
-    }
-    setLoading(false)
-  }
-
-  const filtered = filter === 'all' ? payments : payments.filter(p => p.status === filter)
-  const totalPaid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0)
-  const totalPending = payments.filter(p => p.status === 'pending').reduce((s, p) => s + (p.amount || 0), 0)
+  const payments = Array.isArray(data) ? data : []
+  const filtered = filter === 'all' ? payments : payments.filter((p: any) => p.status === filter)
+  const totalPaid = payments.filter((p: any) => p.status === 'paid').reduce((s: number, p: any) => s + (p.amount || 0), 0)
+  const totalPending = payments.filter((p: any) => p.status === 'pending').reduce((s: number, p: any) => s + (p.amount || 0), 0)
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Pagos</h1>
-            <p className="text-slate-500 mt-1">Control de pagos y señales</p>
+      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a', margin: 0 }}>💳 Pagos</h1>
+          <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>Control de pagos y señales</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0' }}>
+            <p style={{ fontSize: '12px', fontWeight: 500, color: '#64748b', margin: 0 }}>Total Pagos</p>
+            <p style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', margin: '4px 0 0' }}>{payments.length}</p>
+          </div>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0' }}>
+            <p style={{ fontSize: '12px', fontWeight: 500, color: '#64748b', margin: 0 }}>Cobrado</p>
+            <p style={{ fontSize: '24px', fontWeight: 700, color: '#059669', margin: '4px 0 0' }}>{totalPaid.toFixed(2)}€</p>
+          </div>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '20px', border: '1px solid #e2e8f0' }}>
+            <p style={{ fontSize: '12px', fontWeight: 500, color: '#64748b', margin: 0 }}>Pendiente</p>
+            <p style={{ fontSize: '24px', fontWeight: 700, color: '#d97706', margin: '4px 0 0' }}>{totalPending.toFixed(2)}€</p>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-            <p className="text-xs font-medium text-slate-500">Total Pagos</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{payments.length}</p>
-          </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-            <p className="text-xs font-medium text-slate-500">Cobrado</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">{totalPaid.toFixed(2)}€</p>
-          </div>
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60">
-            <p className="text-xs font-medium text-slate-500">Pendiente</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{totalPending.toFixed(2)}€</p>
-          </div>
-        </div>
-
-        {/* Filter */}
-        <div className="flex gap-2 mb-4">
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
           {[
-            { value: 'all' as const, label: 'Todos' },
-            { value: 'paid' as const, label: 'Pagados' },
-            { value: 'pending' as const, label: 'Pendientes' },
+            { value: 'all', label: 'Todos' },
+            { value: 'paid', label: 'Pagados' },
+            { value: 'pending', label: 'Pendientes' },
           ].map(f => (
-            <button
+            <a
               key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                filter === f.value ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
+              href={`/payments?filter=${f.value}`}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 500,
+                textDecoration: 'none',
+                ...(filter === f.value
+                  ? { background: '#2563eb', color: '#fff' }
+                  : { background: '#fff', color: '#475569', border: '1px solid #e2e8f0' }),
+              }}
             >
               {f.label}
-            </button>
+            </a>
           ))}
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <span className="text-3xl">💳</span>
-              <p className="text-slate-400 mt-2 text-sm">No hay pagos registrados</p>
+        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <span style={{ fontSize: '32px' }}>💳</span>
+              <p style={{ color: '#94a3b8', marginTop: '8px', fontSize: '14px' }}>No hay pagos registrados</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Fecha</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Reserva</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Método</th>
-                  <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Importe</th>
-                  <th className="text-center px-5 py-3 text-xs font-semibold text-slate-500 uppercase">Estado</th>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const }}>Fecha</th>
+                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const }}>Reserva</th>
+                  <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const }}>Método</th>
+                  <th style={{ textAlign: 'right', padding: '12px 20px', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const }}>Importe</th>
+                  <th style={{ textAlign: 'center', padding: '12px 20px', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const }}>Estado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered
-                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map(p => (
-                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-5 py-4">
-                        <p className="text-sm text-slate-900">{new Date(p.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                        <p className="text-xs text-slate-400">{new Date(p.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
+              <tbody>
+                {filtered.map((p: any) => {
+                  const d = new Date(p.created_at)
+                  const sc = statusInline[p.status] || { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' }
+                  return (
+                    <tr key={p.id} style={{ borderTop: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '16px 20px' }}>
+                        <p style={{ fontSize: '14px', color: '#0f172a', margin: 0 }}>{d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0' }}>{d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</p>
                       </td>
-                      <td className="px-5 py-4">
-                        <Link href={`/reservations/${p.reservation_id}`} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                          {p.reservations?.customer_name || p.reservation_id?.substring(0, 8) + '…'}
-                        </Link>
+                      <td style={{ padding: '16px 20px' }}>
+                        <a href={`/reservations/${p.reservation_id}`} style={{ fontSize: '14px', color: '#2563eb', fontWeight: 500, textDecoration: 'none' }}>
+                          {p.reservations?.customer_name || (p.reservation_id?.substring(0, 8) + '…')}
+                        </a>
                         {p.reservations && (
-                          <p className="text-xs text-slate-400">{p.reservations.fecha} · {p.reservations.personas} pers.</p>
+                          <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0' }}>{p.reservations.fecha} · {p.reservations.personas} pers.</p>
                         )}
                       </td>
-                      <td className="px-5 py-4">
-                        <span className="text-sm text-slate-700">{methodLabels[p.method] || p.method}</span>
+                      <td style={{ padding: '16px 20px' }}>
+                        <span style={{ fontSize: '14px', color: '#334155' }}>{methodLabels[p.method] || p.method}</span>
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <span className="text-sm font-bold text-slate-900">{(p.amount || 0).toFixed(2)}€</span>
+                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{(p.amount || 0).toFixed(2)}€</span>
                       </td>
-                      <td className="px-5 py-4 text-center">
-                        <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${statusColors[p.status] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                      <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                        <span style={{ padding: '4px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
                           {statusLabels[p.status] || p.status}
                         </span>
                       </td>
                     </tr>
-                  ))}
+                  )
+                })}
               </tbody>
             </table>
           )}
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <a href="/payments" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }}>🔄 Actualizar</a>
         </div>
       </div>
     </DashboardLayout>

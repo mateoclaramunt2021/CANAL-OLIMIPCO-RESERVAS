@@ -1,37 +1,22 @@
-'use client'
-
-import { useEffect, useState, useMemo } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
-import Link from 'next/link'
+import { supabaseAdmin } from '@/lib/supabase'
 
-interface Reservation {
-  id: string
-  customer_name: string
-  customer_phone: string
-  fecha: string
-  hora_inicio: string
-  hora_fin: string
-  personas: number
-  status: string
-  event_type: string
-  total_amount: number
-  table_id: string | null
+export const dynamic = 'force-dynamic'
+
+const statusDotColor: Record<string, string> = {
+  HOLD_BLOCKED: '#f59e0b',
+  CONFIRMED: '#10b981',
+  CANCELED: '#ef4444',
+  COMPLETED: '#94a3b8',
+  NO_SHOW: '#f87171',
 }
 
-const statusColors: Record<string, string> = {
-  HOLD_BLOCKED: 'bg-amber-400',
-  CONFIRMED: 'bg-emerald-400',
-  CANCELED: 'bg-red-400',
-  COMPLETED: 'bg-slate-400',
-  NO_SHOW: 'bg-red-300',
-}
-
-const statusDot: Record<string, string> = {
-  HOLD_BLOCKED: 'bg-amber-500',
-  CONFIRMED: 'bg-emerald-500',
-  CANCELED: 'bg-red-500',
-  COMPLETED: 'bg-slate-500',
-  NO_SHOW: 'bg-red-400',
+const statusBarColor: Record<string, string> = {
+  HOLD_BLOCKED: '#fbbf24',
+  CONFIRMED: '#34d399',
+  CANCELED: '#f87171',
+  COMPLETED: '#94a3b8',
+  NO_SHOW: '#fca5a5',
 }
 
 const eventLabels: Record<string, string> = {
@@ -47,35 +32,16 @@ const DAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 function getMonthDays(year: number, month: number) {
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
-  const startDow = (firstDay.getDay() + 6) % 7 // Mon=0
+  const startDow = (firstDay.getDay() + 6) % 7
   const days: { date: Date; inMonth: boolean }[] = []
-
-  // Previous month padding
   for (let i = startDow - 1; i >= 0; i--) {
-    const d = new Date(year, month, -i)
-    days.push({ date: d, inMonth: false })
+    days.push({ date: new Date(year, month, -i), inMonth: false })
   }
-  // Current month
   for (let i = 1; i <= lastDay.getDate(); i++) {
     days.push({ date: new Date(year, month, i), inMonth: true })
   }
-  // Next month padding (fill to 42 for 6 rows)
   while (days.length < 42) {
-    const d = new Date(year, month + 1, days.length - startDow - lastDay.getDate() + 1)
-    days.push({ date: d, inMonth: false })
-  }
-  return days
-}
-
-function getWeekDays(baseDate: Date) {
-  const start = new Date(baseDate)
-  const dow = (start.getDay() + 6) % 7
-  start.setDate(start.getDate() - dow)
-  const days: Date[] = []
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start)
-    d.setDate(start.getDate() + i)
-    days.push(d)
+    days.push({ date: new Date(year, month + 1, days.length - startDow - lastDay.getDate() + 1), inMonth: false })
   }
   return days
 }
@@ -84,259 +50,179 @@ function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const TIME_SLOTS = [
-  '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-  '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00',
-]
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string; date?: string; view?: string }> }) {
+  const params = await searchParams
+  const now = new Date()
+  const year = parseInt(params.year || '') || now.getFullYear()
+  const month = params.month ? parseInt(params.month) - 1 : now.getMonth()
+  const view = params.view === 'week' ? 'week' : 'month'
+  const selectedDate = params.date || null
+  const today = toDateStr(now)
 
-export default function CalendarPage() {
-  const [reservations, setReservations] = useState<Reservation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'month' | 'week'>('month')
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  // Fetch all active reservations
+  const { data } = await supabaseAdmin
+    .from('reservations')
+    .select('id, customer_name, customer_phone, fecha, hora_inicio, hora_fin, personas, status, event_type, total_amount, table_id')
+    .not('status', 'eq', 'CANCELED')
+    .order('hora_inicio', { ascending: true })
 
-  useEffect(() => {
-    fetchReservations()
-  }, [])
-
-  const fetchReservations = async () => {
-    try {
-      const res = await fetch('/api/reservations')
-      const data = await res.json()
-      setReservations(Array.isArray(data) ? data : [])
-    } catch {
-      setReservations([])
-    }
-    setLoading(false)
-  }
-
-  const activeReservations = reservations.filter(r => r.status !== 'CANCELED')
+  const reservations: any[] = data || []
 
   // Group by date
-  const byDate = useMemo(() => {
-    const map: Record<string, Reservation[]> = {}
-    for (const r of activeReservations) {
-      if (!r.fecha) continue
-      if (!map[r.fecha]) map[r.fecha] = []
-      map[r.fecha].push(r)
-    }
-    return map
-  }, [activeReservations])
-
-  const today = toDateStr(new Date())
-
-  // Month navigation
-  const year = currentDate.getFullYear()
-  const month = currentDate.getMonth()
-  const monthDays = useMemo(() => getMonthDays(year, month), [year, month])
-  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate])
-
-  const prevPeriod = () => {
-    const d = new Date(currentDate)
-    if (view === 'month') d.setMonth(d.getMonth() - 1)
-    else d.setDate(d.getDate() - 7)
-    setCurrentDate(d)
-  }
-  const nextPeriod = () => {
-    const d = new Date(currentDate)
-    if (view === 'month') d.setMonth(d.getMonth() + 1)
-    else d.setDate(d.getDate() + 7)
-    setCurrentDate(d)
-  }
-  const goToday = () => {
-    setCurrentDate(new Date())
-    setSelectedDate(today)
+  const byDate: Record<string, any[]> = {}
+  for (const r of reservations) {
+    if (!r.fecha) continue
+    if (!byDate[r.fecha]) byDate[r.fecha] = []
+    byDate[r.fecha].push(r)
   }
 
-  const monthLabel = currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
-  const weekLabel = (() => {
-    const wd = getWeekDays(currentDate)
-    const s = wd[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-    const e = wd[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
-    return `${s} – ${e}`
-  })()
-
+  const monthDays = getMonthDays(year, month)
   const selectedReservations = selectedDate ? (byDate[selectedDate] || []) : []
+
+  // Navigation
+  const prevMonth = month === 0 ? 12 : month
+  const prevYear = month === 0 ? year - 1 : year
+  const nextMonth = month === 11 ? 1 : month + 2
+  const nextYear = month === 11 ? year + 1 : year
+  const prevUrl = `/calendar?year=${prevYear}&month=${prevMonth}&view=${view}${selectedDate ? `&date=${selectedDate}` : ''}`
+  const nextUrl = `/calendar?year=${nextYear}&month=${nextMonth}&view=${view}${selectedDate ? `&date=${selectedDate}` : ''}`
+  const todayUrl = `/calendar?year=${now.getFullYear()}&month=${now.getMonth() + 1}&date=${today}&view=${view}`
+
+  const monthLabel = new Date(year, month).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+
+  const buildUrl = (date: string) => `/calendar?year=${year}&month=${month + 1}&date=${date}&view=${view}`
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Calendario</h1>
-            <p className="text-slate-500 mt-1">Vista de reservas por fecha</p>
+            <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a', margin: 0 }}>📅 Calendario</h1>
+            <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>Vista de reservas por fecha</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex bg-white rounded-xl border border-slate-200 p-1">
-              <button onClick={() => setView('month')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${view === 'month' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Mes</button>
-              <button onClick={() => setView('week')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${view === 'week' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>Semana</button>
-            </div>
-            <Link href="/reservations/new" className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
-              + Nueva Reserva
-            </Link>
-          </div>
+          <a href="/reservations/new" style={{ padding: '10px 16px', background: '#2563eb', color: '#fff', borderRadius: '12px', fontSize: '14px', fontWeight: 500, textDecoration: 'none' }}>+ Nueva Reserva</a>
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <button onClick={prevPeriod} className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors text-slate-600">←</button>
-            <button onClick={nextPeriod} className="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors text-slate-600">→</button>
-            <button onClick={goToday} className="px-4 py-2 bg-white rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">Hoy</button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <a href={prevUrl} style={{ width: '40px', height: '40px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: '#475569', fontSize: '18px' }}>←</a>
+            <a href={nextUrl} style={{ width: '40px', height: '40px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: '#475569', fontSize: '18px' }}>→</a>
+            <a href={todayUrl} style={{ padding: '8px 16px', background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', fontWeight: 500, color: '#475569', textDecoration: 'none' }}>Hoy</a>
           </div>
-          <h2 className="text-xl font-semibold text-slate-900 capitalize">{view === 'month' ? monthLabel : weekLabel}</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#0f172a', textTransform: 'capitalize', margin: 0 }}>{monthLabel}</h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
           {/* Calendar grid */}
-          <div className="lg:col-span-2">
-            {loading ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-12 text-center">
-                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="text-slate-500 mt-3 text-sm">Cargando...</p>
+          <div>
+            <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              {/* Day headers */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f1f5f9' }}>
+                {DAYS.map(d => (
+                  <div key={d} style={{ padding: '12px', textAlign: 'center', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>{d}</div>
+                ))}
               </div>
-            ) : view === 'month' ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                {/* Day headers */}
-                <div className="grid grid-cols-7 border-b border-slate-100">
-                  {DAYS.map(d => (
-                    <div key={d} className="py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">{d}</div>
-                  ))}
-                </div>
-                {/* Day cells */}
-                <div className="grid grid-cols-7">
-                  {monthDays.map(({ date, inMonth }, idx) => {
-                    const ds = toDateStr(date)
-                    const ress = byDate[ds] || []
-                    const isToday = ds === today
-                    const isSelected = ds === selectedDate
-                    const isClosed = date.getDay() === 1 || date.getDay() === 2 // Lunes/Martes
+              {/* Day cells */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                {monthDays.map(({ date, inMonth }, idx) => {
+                  const ds = toDateStr(date)
+                  const ress = byDate[ds] || []
+                  const isToday = ds === today
+                  const isSelected = ds === selectedDate
+                  const isClosed = date.getDay() === 1 || date.getDay() === 2
 
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedDate(ds)}
-                        className={`relative min-h-[90px] p-2 border-b border-r border-slate-100 text-left transition-all hover:bg-blue-50/50 ${
-                          !inMonth ? 'bg-slate-50/50' : ''
-                        } ${isSelected ? 'ring-2 ring-blue-500 ring-inset bg-blue-50/30' : ''}`}
-                      >
-                        <span className={`text-sm font-medium ${
-                          isToday ? 'bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center' :
-                          !inMonth ? 'text-slate-300' :
-                          isClosed ? 'text-red-300' : 'text-slate-700'
-                        }`}>
-                          {date.getDate()}
-                        </span>
-                        {isClosed && inMonth && <span className="text-[9px] text-red-300 block">Cerrado</span>}
-                        {/* Dots */}
-                        {ress.length > 0 && (
-                          <div className="mt-1 space-y-0.5">
-                            {ress.slice(0, 3).map(r => (
-                              <div key={r.id} className={`h-1.5 rounded-full ${statusColors[r.status] || 'bg-slate-300'}`} />
-                            ))}
-                            {ress.length > 3 && <span className="text-[9px] text-slate-400">+{ress.length - 3} más</span>}
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
+                  return (
+                    <a
+                      key={idx}
+                      href={buildUrl(ds)}
+                      style={{
+                        display: 'block',
+                        minHeight: '90px',
+                        padding: '8px',
+                        borderBottom: '1px solid #f1f5f9',
+                        borderRight: '1px solid #f1f5f9',
+                        textDecoration: 'none',
+                        background: isSelected ? 'rgba(59,130,246,0.08)' : !inMonth ? 'rgba(248,250,252,0.5)' : '#fff',
+                        ...(isSelected ? { outline: '2px solid #3b82f6', outlineOffset: '-2px' } : {}),
+                      }}
+                    >
+                      <span style={{
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        ...(isToday ? { background: '#2563eb', color: '#fff', width: '28px', height: '28px', borderRadius: '50%' } : {}),
+                        color: isToday ? '#fff' : !inMonth ? '#cbd5e1' : isClosed ? '#fca5a5' : '#334155',
+                      }}>
+                        {date.getDate()}
+                      </span>
+                      {isClosed && inMonth && <span style={{ fontSize: '9px', color: '#fca5a5', display: 'block' }}>Cerrado</span>}
+                      {ress.length > 0 && (
+                        <div style={{ marginTop: '4px' }}>
+                          {ress.slice(0, 3).map((r: any) => (
+                            <div key={r.id} style={{ height: '6px', borderRadius: '3px', marginBottom: '2px', background: statusBarColor[r.status] || '#94a3b8' }} />
+                          ))}
+                          {ress.length > 3 && <span style={{ fontSize: '9px', color: '#94a3b8' }}>+{ress.length - 3} más</span>}
+                        </div>
+                      )}
+                    </a>
+                  )
+                })}
               </div>
-            ) : (
-              /* Week view */
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-100">
-                        <th className="w-20 px-3 py-3 text-xs font-semibold text-slate-500">Hora</th>
-                        {weekDays.map((d, i) => {
-                          const ds = toDateStr(d)
-                          const isToday = ds === today
-                          const isClosed = d.getDay() === 1 || d.getDay() === 2
-                          return (
-                            <th key={i} className={`px-2 py-3 text-center ${isToday ? 'bg-blue-50' : ''}`}>
-                              <div className={`text-xs font-semibold ${isClosed ? 'text-red-300' : 'text-slate-500'}`}>{DAYS[i]}</div>
-                              <div className={`text-lg font-bold mt-0.5 ${isToday ? 'text-blue-600' : isClosed ? 'text-red-300' : 'text-slate-700'}`}>{d.getDate()}</div>
-                            </th>
-                          )
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {TIME_SLOTS.map(slot => (
-                        <tr key={slot} className="border-b border-slate-50">
-                          <td className="px-3 py-2 text-xs text-slate-400 font-mono">{slot}</td>
-                          {weekDays.map((d, i) => {
-                            const ds = toDateStr(d)
-                            const ress = (byDate[ds] || []).filter(r => {
-                              if (!r.hora_inicio) return false
-                              return r.hora_inicio.substring(0, 5) === slot
-                            })
-                            return (
-                              <td key={i} className={`px-1 py-1 ${toDateStr(d) === today ? 'bg-blue-50/30' : ''}`}>
-                                {ress.map(r => (
-                                  <Link key={r.id} href={`/reservations/${r.id}`} className={`block px-2 py-1 rounded-lg text-[10px] font-medium mb-0.5 truncate ${statusColors[r.status]} text-white hover:opacity-80 transition-opacity`}>
-                                    {r.customer_name?.split(' ')[0] || '—'} ({r.personas})
-                                  </Link>
-                                ))}
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 mt-4 px-2">
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-emerald-500"></div><span className="text-xs text-slate-500">Confirmada</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-amber-500"></div><span className="text-xs text-slate-500">Pago pendiente</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-slate-400"></div><span className="text-xs text-slate-500">Completada</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-red-400"></div><span className="text-xs text-slate-500">Cancelada</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px', padding: '0 8px' }}>
+              {[
+                { color: '#10b981', label: 'Confirmada' },
+                { color: '#f59e0b', label: 'Pago pendiente' },
+                { color: '#94a3b8', label: 'Completada' },
+                { color: '#f87171', label: 'No Show' },
+              ].map(l => (
+                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: l.color }} />
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>{l.label}</span>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Selected day panel */}
           <div>
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-5 sticky top-8">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">
+            <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '20px', position: 'sticky', top: '32px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginBottom: '16px', marginTop: 0 }}>
                 {selectedDate
                   ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
                   : 'Selecciona un día'}
               </h3>
               {!selectedDate ? (
-                <p className="text-sm text-slate-400">Haz clic en un día del calendario para ver sus reservas</p>
+                <p style={{ fontSize: '14px', color: '#94a3b8' }}>Haz clic en un día del calendario para ver sus reservas</p>
               ) : selectedReservations.length === 0 ? (
-                <div className="text-center py-6">
-                  <span className="text-3xl">📭</span>
-                  <p className="text-sm text-slate-400 mt-2">Sin reservas este día</p>
-                  <Link href="/reservations/new" className="inline-block mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">+ Crear reserva</Link>
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <span style={{ fontSize: '32px' }}>📭</span>
+                  <p style={{ fontSize: '14px', color: '#94a3b8', marginTop: '8px' }}>Sin reservas este día</p>
+                  <a href="/reservations/new" style={{ display: 'inline-block', marginTop: '12px', fontSize: '14px', color: '#2563eb', fontWeight: 500, textDecoration: 'none' }}>+ Crear reserva</a>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {selectedReservations
-                    .sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || ''))
-                    .map(r => (
-                      <Link key={r.id} href={`/reservations/${r.id}`} className="block p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-blue-50 hover:border-blue-200 transition-all">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${statusDot[r.status] || 'bg-slate-400'}`} />
-                            <span className="text-sm font-semibold text-slate-900">{r.hora_inicio?.substring(0, 5) || '—'}</span>
-                          </div>
-                          <span className="text-xs text-slate-400">{eventLabels[r.event_type] || r.event_type}</span>
+                <div>
+                  {selectedReservations.map((r: any) => (
+                    <a key={r.id} href={`/reservations/${r.id}`} style={{ display: 'block', padding: '12px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9', marginBottom: '8px', textDecoration: 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: statusDotColor[r.status] || '#94a3b8' }} />
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{r.hora_inicio?.substring(0, 5) || '—'}</span>
                         </div>
-                        <p className="text-sm text-slate-700 mt-1 truncate">{r.customer_name || 'Sin nombre'}</p>
-                        <p className="text-xs text-slate-400">{r.personas} pers.{r.table_id ? ` · Mesa ${r.table_id}` : ''}</p>
-                      </Link>
-                    ))}
-                  <div className="pt-2 border-t border-slate-100 mt-3">
-                    <p className="text-xs text-slate-400">{selectedReservations.length} reserva{selectedReservations.length !== 1 ? 's' : ''} · {selectedReservations.reduce((s, r) => s + r.personas, 0)} personas</p>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>{eventLabels[r.event_type] || r.event_type}</span>
+                      </div>
+                      <p style={{ fontSize: '14px', color: '#334155', marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.customer_name || 'Sin nombre'}</p>
+                      <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0' }}>{r.personas} pers.{r.table_id ? ` · Mesa ${r.table_id}` : ''}</p>
+                    </a>
+                  ))}
+                  <div style={{ paddingTop: '8px', borderTop: '1px solid #f1f5f9', marginTop: '12px' }}>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>{selectedReservations.length} reserva{selectedReservations.length !== 1 ? 's' : ''} · {selectedReservations.reduce((s: number, r: any) => s + r.personas, 0)} personas</p>
                   </div>
                 </div>
               )}

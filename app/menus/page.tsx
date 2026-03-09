@@ -1,64 +1,14 @@
-'use client'
-
-import { useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 
-// Hardcoded menus matching core/menus.ts
+export const dynamic = 'force-dynamic'
+
 const MENUS = [
-  {
-    code: 'menu_grupo_34',
-    name: 'Menú Grupo Premium',
-    price: 34,
-    description: 'Embutidos ibéricos, pan coca tomate, bravas · Solomillo pimienta / Bacalao setas / Parrillada verduras · Tarta o Helado',
-    drinks: '1 bebida + agua + café',
-    eventTypes: ['GRUPO_SENTADO', 'NOCTURNA_EXCLUSIVA'],
-    color: 'from-purple-500 to-indigo-600',
-  },
-  {
-    code: 'menu_grupo_29',
-    name: 'Menú Grupo',
-    price: 29,
-    description: 'Rigatoni crema tomate / Ensalada cabra · Solomillo pimienta verde / Lubina horno / Parrillada verduras · Sorbete limón cava / Macedonia',
-    drinks: '1 bebida + agua',
-    eventTypes: ['GRUPO_SENTADO', 'NOCTURNA_EXCLUSIVA'],
-    color: 'from-blue-500 to-cyan-600',
-  },
-  {
-    code: 'menu_infantil',
-    name: 'Menú Infantil',
-    price: 14.5,
-    description: 'Macarrones tomate / Hamburguesa patatas / Fingers pollo / Canelones · Tarta / Helado / Yogur',
-    drinks: '1 bebida',
-    eventTypes: ['INFANTIL_CUMPLE'],
-    color: 'from-pink-500 to-rose-600',
-  },
-  {
-    code: 'menu_pica_34',
-    name: 'Pica-Pica Premium',
-    price: 34,
-    description: 'Embutidos ibéricos, pan coca, bravas, brocheta sepia y gambas, alcachofas jamón pato, ensaladitas cabra, saquitos carrillera, croquetas, minihamburguesas',
-    drinks: '2 bebidas',
-    eventTypes: ['GRUPO_PICA_PICA', 'NOCTURNA_EXCLUSIVA'],
-    color: 'from-orange-500 to-amber-600',
-  },
-  {
-    code: 'menu_pica_30',
-    name: 'Pica-Pica',
-    price: 30,
-    description: 'Tortilla patatas, croquetas, minihamburguesas brioxe, calamarcitos andaluza, fingers pollo, nachos guacamole',
-    drinks: '2 bebidas',
-    eventTypes: ['GRUPO_PICA_PICA', 'NOCTURNA_EXCLUSIVA'],
-    color: 'from-yellow-500 to-orange-600',
-  },
-  {
-    code: 'menu_padres_38',
-    name: 'Menú Padres/Adultos',
-    price: 38,
-    description: 'Menú para adultos acompañantes en eventos infantiles',
-    drinks: '1 bebida + agua + café',
-    eventTypes: ['INFANTIL_CUMPLE'],
-    color: 'from-teal-500 to-emerald-600',
-  },
+  { code: 'menu_grupo_34', name: 'Menú Grupo Premium', price: 34, description: 'Embutidos ibéricos, pan coca tomate, bravas · Solomillo pimienta / Bacalao setas / Parrillada verduras · Tarta o Helado', drinks: '1 bebida + agua + café', eventTypes: ['GRUPO_SENTADO', 'NOCTURNA_EXCLUSIVA'], bg: '#7c3aed', bgEnd: '#4f46e5' },
+  { code: 'menu_grupo_29', name: 'Menú Grupo', price: 29, description: 'Rigatoni crema tomate / Ensalada cabra · Solomillo pimienta verde / Lubina horno / Parrillada verduras · Sorbete limón cava / Macedonia', drinks: '1 bebida + agua', eventTypes: ['GRUPO_SENTADO', 'NOCTURNA_EXCLUSIVA'], bg: '#3b82f6', bgEnd: '#0891b2' },
+  { code: 'menu_infantil', name: 'Menú Infantil', price: 14.5, description: 'Macarrones tomate / Hamburguesa patatas / Fingers pollo / Canelones · Tarta / Helado / Yogur', drinks: '1 bebida', eventTypes: ['INFANTIL_CUMPLE'], bg: '#ec4899', bgEnd: '#e11d48' },
+  { code: 'menu_pica_34', name: 'Pica-Pica Premium', price: 34, description: 'Embutidos ibéricos, pan coca, bravas, brocheta sepia y gambas, alcachofas jamón pato, ensaladitas cabra, saquitos carrillera, croquetas, minihamburguesas', drinks: '2 bebidas', eventTypes: ['GRUPO_PICA_PICA', 'NOCTURNA_EXCLUSIVA'], bg: '#f97316', bgEnd: '#f59e0b' },
+  { code: 'menu_pica_30', name: 'Pica-Pica', price: 30, description: 'Tortilla patatas, croquetas, minihamburguesas brioxe, calamarcitos andaluza, fingers pollo, nachos guacamole', drinks: '2 bebidas', eventTypes: ['GRUPO_PICA_PICA', 'NOCTURNA_EXCLUSIVA'], bg: '#eab308', bgEnd: '#f97316' },
+  { code: 'menu_padres_38', name: 'Menú Padres/Adultos', price: 38, description: 'Menú para adultos acompañantes en eventos infantiles', drinks: '1 bebida + agua + café', eventTypes: ['INFANTIL_CUMPLE'], bg: '#14b8a6', bgEnd: '#059669' },
 ]
 
 const eventLabels: Record<string, string> = {
@@ -68,44 +18,44 @@ const eventLabels: Record<string, string> = {
   GRUPO_PICA_PICA: 'Pica-Pica',
 }
 
-export default function MenusPage() {
-  const [calcMenu, setCalcMenu] = useState(MENUS[0].code)
-  const [calcPersonas, setCalcPersonas] = useState(20)
+export default async function MenusPage({ searchParams }: { searchParams: Promise<{ menu?: string; personas?: string }> }) {
+  const params = await searchParams
+  const calcMenu = params.menu || MENUS[0].code
+  const calcPersonas = Math.max(1, parseInt(params.personas || '20') || 1)
 
-  const selectedMenu = MENUS.find(m => m.code === calcMenu)!
+  const selectedMenu = MENUS.find(m => m.code === calcMenu) || MENUS[0]
   const total = selectedMenu.price * calcPersonas
   const deposit = Math.round(total * 0.4 * 100) / 100
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Menús</h1>
-          <p className="text-slate-500 mt-1">Catálogo de menús para eventos y grupos</p>
+      <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#0f172a', margin: 0 }}>🍽️ Menús</h1>
+          <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>Catálogo de menús para eventos y grupos</p>
         </div>
 
         {/* Menu Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginBottom: '40px' }}>
           {MENUS.map(menu => (
-            <div key={menu.code} className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden hover:shadow-md transition-shadow">
-              <div className={`bg-gradient-to-r ${menu.color} p-4`}>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-white font-bold text-lg">{menu.name}</h3>
-                  <span className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-bold">{menu.price}€</span>
+            <div key={menu.code} style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              <div style={{ background: `linear-gradient(135deg, ${menu.bg}, ${menu.bgEnd})`, padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ color: '#fff', fontWeight: 700, fontSize: '18px', margin: 0 }}>{menu.name}</h3>
+                  <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '20px', color: '#fff', fontSize: '14px', fontWeight: 700 }}>{menu.price}€</span>
                 </div>
-                <p className="text-white/80 text-xs mt-1">por persona · IVA incluido</p>
+                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px', marginTop: '4px' }}>por persona · IVA incluido</p>
               </div>
-              <div className="p-4">
-                <p className="text-sm text-slate-600 leading-relaxed">{menu.description}</p>
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-xs">🥤</span>
-                    <span className="text-xs text-slate-500">{menu.drinks}</span>
+              <div style={{ padding: '16px' }}>
+                <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>{menu.description}</p>
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px' }}>🥤</span>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>{menu.drinks}</span>
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {menu.eventTypes.map(et => (
-                      <span key={et} className="px-2 py-0.5 bg-slate-100 rounded-md text-[10px] font-medium text-slate-600">
+                      <span key={et} style={{ padding: '2px 8px', background: '#f1f5f9', borderRadius: '6px', fontSize: '10px', fontWeight: 500, color: '#475569' }}>
                         {eventLabels[et] || et}
                       </span>
                     ))}
@@ -116,77 +66,73 @@ export default function MenusPage() {
           ))}
         </div>
 
-        {/* Calculator */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">🧮 Calculadora de Presupuesto</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Calculator - uses URL params instead of state */}
+        <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#0f172a', marginBottom: '16px', marginTop: 0 }}>🧮 Calculadora de Presupuesto</h2>
+          <form method="GET" action="/menus" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', alignItems: 'end' }}>
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-2">Menú</label>
-              <select
-                value={calcMenu}
-                onChange={e => setCalcMenu(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-              >
+              <label style={{ fontSize: '14px', fontWeight: 500, color: '#334155', display: 'block', marginBottom: '8px' }}>Menú</label>
+              <select name="menu" defaultValue={calcMenu} style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '14px', background: '#fff' }}>
                 {MENUS.map(m => (
                   <option key={m.code} value={m.code}>{m.name} ({m.price}€/pers.)</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-2">Personas</label>
-              <input
-                type="number"
-                min={1}
-                max={200}
-                value={calcPersonas}
-                onChange={e => setCalcPersonas(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
+              <label style={{ fontSize: '14px', fontWeight: 500, color: '#334155', display: 'block', marginBottom: '8px' }}>Personas</label>
+              <input type="number" name="personas" min={1} max={200} defaultValue={calcPersonas} style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '14px', boxSizing: 'border-box' }} />
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-100">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-600">{calcPersonas} × {selectedMenu.price}€</span>
-                  <span className="text-sm font-semibold text-slate-900">{total.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-blue-200">
-                  <span className="text-sm font-medium text-blue-700">Total</span>
-                  <span className="text-lg font-bold text-blue-700">{total.toFixed(2)}€</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-amber-700">Señal (40%)</span>
-                  <span className="text-sm font-bold text-amber-700">{deposit.toFixed(2)}€</span>
-                </div>
-              </div>
+            <div>
+              <button type="submit" style={{ width: '100%', padding: '12px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>Calcular</button>
+            </div>
+          </form>
+
+          {/* Result */}
+          <div style={{ marginTop: '20px', background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)', borderRadius: '12px', padding: '16px', border: '1px solid #bfdbfe' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '14px', color: '#475569' }}>{calcPersonas} × {selectedMenu.price}€</span>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{total.toFixed(2)}€</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #93c5fd' }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: '#1d4ed8' }}>Total</span>
+              <span style={{ fontSize: '18px', fontWeight: 700, color: '#1d4ed8' }}>{total.toFixed(2)}€</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+              <span style={{ fontSize: '14px', color: '#b45309' }}>Señal (40%)</span>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#b45309' }}>{deposit.toFixed(2)}€</span>
             </div>
           </div>
 
           {/* Extra hours */}
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-700 mb-2">Extensiones Horarias</h3>
-            <div className="flex gap-4">
-              <div className="px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <p className="text-sm font-medium text-slate-800">1:00 – 2:00 AM</p>
-                <p className="text-lg font-bold text-slate-900">100€</p>
+          <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px', marginTop: 0 }}>Extensiones Horarias</h3>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, color: '#1e293b', margin: 0 }}>1:00 – 2:00 AM</p>
+                <p style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: '4px 0 0' }}>100€</p>
               </div>
-              <div className="px-4 py-3 bg-slate-50 rounded-xl border border-slate-200">
-                <p className="text-sm font-medium text-slate-800">2:00 – 3:00 AM</p>
-                <p className="text-lg font-bold text-slate-900">200€</p>
+              <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <p style={{ fontSize: '14px', fontWeight: 500, color: '#1e293b', margin: 0 }}>2:00 – 3:00 AM</p>
+                <p style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: '4px 0 0' }}>200€</p>
               </div>
             </div>
           </div>
 
           {/* Conditions */}
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-700 mb-2">Condiciones</h3>
-            <ul className="space-y-1.5 text-sm text-slate-600">
-              <li>• Señal del <strong>40%</strong> para confirmar eventos/grupos</li>
-              <li>• Plazo de pago: <strong>4 días</strong> tras reservar</li>
-              <li>• Antelación mínima: <strong>5 días</strong> para eventos</li>
-              <li>• Cancelación con <strong>72h</strong> de antelación o se pierde la señal</li>
-              <li>• Modificar asistentes/alergias: <strong>72h</strong> antes</li>
-              <li>• Todos los precios incluyen <strong>IVA</strong></li>
-              <li>• No se permite comida externa. Decoración sí, confeti no</li>
+          <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px', marginTop: 0 }}>Condiciones</h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+              {[
+                'Señal del 40% para confirmar eventos/grupos',
+                'Plazo de pago: 4 días tras reservar',
+                'Antelación mínima: 5 días para eventos',
+                'Cancelación con 72h de antelación o se pierde la señal',
+                'Modificar asistentes/alergias: 72h antes',
+                'Todos los precios incluyen IVA',
+                'No se permite comida externa. Decoración sí, confeti no',
+              ].map((c, i) => (
+                <li key={i} style={{ fontSize: '14px', color: '#475569', padding: '3px 0' }}>• {c}</li>
+              ))}
             </ul>
           </div>
         </div>
