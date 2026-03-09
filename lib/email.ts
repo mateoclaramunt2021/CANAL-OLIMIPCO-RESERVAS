@@ -178,7 +178,7 @@ function emailTemplate(title: string, content: string): string {
               <p style="color:#8a8578;font-size:13px;margin:0;">
                 📍 Av. del Canal Olímpico 2, Castelldefels<br>
                 📞 930 347 246<br>
-                📧 canalolimpic@daliagrup.com
+                📧 reservascanalolimpcio@gmail.com
               </p>
               <p style="color:#b0a898;font-size:11px;margin:10px 0 0;">
                 © ${new Date().getFullYear()} Canal Olímpico · Dalia Grup
@@ -281,6 +281,68 @@ export async function sendPaymentLink(
   await sendEmail(to, `💳 Reserva ${refDisplay} Pendiente de Pago — Canal Olímpico`, emailTemplate('Reserva Pendiente', content))
 }
 
+// ─── Enviar instrucciones de transferencia bancaria para grupos ─────────────
+
+export async function sendBankTransferPayment(
+  to: string,
+  data: {
+    nombre: string
+    fecha: string
+    hora: string
+    personas: number
+    menuName: string
+    total: number
+    deposit: number
+    deadlineDays: number
+    reservationId: string
+    reservationNumber?: string | null
+  }
+): Promise<void> {
+  const refDisplay = data.reservationNumber || data.reservationId.substring(0, 8)
+  const content = `
+    <h2 style="color:#B08D57;margin:0 0 20px;">📋 Reserva de Grupo — Pendiente de Pago</h2>
+    <p style="color:#1A0F05;font-size:16px;margin:0 0 20px;">
+      Hola <strong>${data.nombre}</strong>, tu reserva está creada. Para confirmarla, abona la señal del 40% mediante <strong>transferencia bancaria</strong>.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f3ee;border-radius:8px;padding:20px;margin:0 0 20px;border:1px solid #e8e2d6;">
+      <tr><td style="padding:8px 16px;">
+        <p style="margin:4px 0;color:#1A0F05;">📅 <strong>Fecha:</strong> ${formatDateEs(data.fecha)}</p>
+        <p style="margin:4px 0;color:#1A0F05;">🕐 <strong>Hora:</strong> ${data.hora}h</p>
+        <p style="margin:4px 0;color:#1A0F05;">👥 <strong>Personas:</strong> ${data.personas}</p>
+        <p style="margin:4px 0;color:#1A0F05;">🍽️ <strong>Menú:</strong> ${data.menuName}</p>
+        <p style="margin:8px 0 4px;color:#1A0F05;font-size:17px;">💰 <strong>Total: ${data.total}€</strong> (IVA incluido)</p>
+        <p style="margin:4px 0;color:#C4724E;font-size:17px;">🏦 <strong>Señal 40%: ${data.deposit}€</strong></p>
+        <p style="margin:8px 0 4px;color:#B08D57;font-size:16px;">📋 <strong>Nº Reserva: ${refDisplay}</strong></p>
+      </td></tr>
+    </table>
+
+    <div style="background-color:#fff7ed;border-radius:10px;padding:20px;margin:0 0 20px;border:2px solid #B08D57;">
+      <h3 style="color:#B08D57;margin:0 0 14px;font-size:18px;text-align:center;">🏦 Datos para la Transferencia</h3>
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:6px 0;color:#1A0F05;font-size:15px;"><strong>IBAN:</strong></td><td style="padding:6px 0;color:#1A0F05;font-size:15px;font-family:monospace;">ES66 2100 3141 9522 0056 2723</td></tr>
+        <tr><td style="padding:6px 0;color:#1A0F05;font-size:15px;"><strong>Importe:</strong></td><td style="padding:6px 0;color:#C4724E;font-size:15px;font-weight:bold;">${data.deposit}€</td></tr>
+        <tr><td style="padding:6px 0;color:#1A0F05;font-size:15px;"><strong>Concepto:</strong></td><td style="padding:6px 0;color:#1A0F05;font-size:15px;">Reserva ${refDisplay}</td></tr>
+        <tr><td style="padding:6px 0;color:#1A0F05;font-size:15px;"><strong>Titular:</strong></td><td style="padding:6px 0;color:#1A0F05;font-size:15px;">Canal Olímpico Restaurante</td></tr>
+      </table>
+    </div>
+
+    <div style="background-color:#f0fdf4;border-radius:8px;padding:16px;margin:0 0 20px;border:1px solid #86efac;">
+      <p style="color:#166534;font-size:15px;margin:0;text-align:center;">
+        📩 Una vez realizada la transferencia, envía el <strong>justificante</strong> a:<br>
+        <a href="mailto:reservascanalolimpcio@gmail.com" style="color:#B08D57;font-weight:bold;font-size:16px;">reservascanalolimpcio@gmail.com</a>
+      </p>
+    </div>
+
+    <p style="color:#C4724E;font-size:14px;text-align:center;">
+      ⏳ Tienes <strong>${data.deadlineDays} días</strong> para realizar la transferencia y enviar el justificante.<br>
+      Si no se recibe, la reserva se cancelará automáticamente.
+    </p>
+    ${data.reservationNumber ? cancelBlock(data.reservationNumber) : ''}
+  `
+
+  await sendEmail(to, `🏦 Reserva ${refDisplay} — Transferencia Pendiente — Canal Olímpico`, emailTemplate('Transferencia Pendiente', content))
+}
+
 // ─── Enviar confirmación de pago recibido ───────────────────────────────────
 
 export async function sendPaymentConfirmation(
@@ -376,7 +438,7 @@ export async function sendAutoCancel(
     </p>
     <p style="color:#1A0F05;font-size:15px;">
       📞 930 347 246<br>
-      📧 canalolimpic@daliagrup.com
+      📧 reservascanalolimpcio@gmail.com
     </p>
   `
 
@@ -516,7 +578,7 @@ export async function sendDishSelectionConfirmation(
       </p>
     </div>
     <p style="color:#1A0F05;font-size:15px;">¡Te esperamos! 🎉</p>
-    <p style="color:#8a8578;font-size:13px;">📞 930 347 246 · 📧 canalolimpic@daliagrup.com</p>
+    <p style="color:#8a8578;font-size:13px;">📞 930 347 246 · 📧 reservascanalolimpcio@gmail.com</p>
     ${cancelBlock(data.reservationNumber)}
   `
 
@@ -597,7 +659,7 @@ export async function sendDishSelectionReminder(
         🍽️ Elegir platos ahora
       </a>
     </div>
-    <p style="color:#8a8578;font-size:13px;text-align:center;">📞 930 347 246 · 📧 canalolimpic@daliagrup.com</p>
+    <p style="color:#8a8578;font-size:13px;text-align:center;">📞 930 347 246 · 📧 reservascanalolimpcio@gmail.com</p>
     ${cancelBlock(data.reservationNumber)}
   `
 
@@ -631,7 +693,7 @@ export async function sendCancellationConfirmation(
       </a>
     </div>
     <p style="color:#8a8578;font-size:13px;text-align:center;">
-      📞 930 347 246 · 📧 canalolimpic@daliagrup.com
+      📞 930 347 246 · 📧 reservascanalolimpcio@gmail.com
     </p>
   `
 

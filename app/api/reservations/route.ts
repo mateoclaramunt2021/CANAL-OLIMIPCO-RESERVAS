@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { findBestTable } from '@/core/tables'
 import { checkMinAdvance, calculateQuote, findMenu, PAYMENT_DEADLINE_DAYS, canCancel } from '@/core/menus'
-import { sendReservationConfirmation, sendPaymentLink, notifyRestaurantNewReservation } from '@/lib/email'
+import { sendReservationConfirmation, sendPaymentLink, sendBankTransferPayment, notifyRestaurantNewReservation } from '@/lib/email'
 import { getStripe } from '@/lib/stripe'
 import { sanitize, sanitizeObject, isValidPhone, isBot, isTooFast } from '@/lib/security'
 import { notifyNewReservation } from '@/lib/telegram'
@@ -46,6 +46,13 @@ const VALID_EVENT_TYPES = [
 
 const EVENT_TYPES_REQUIRING_PAYMENT = [
   'INFANTIL_CUMPLE',
+  'GRUPO_SENTADO',
+  'GRUPO_PICA_PICA',
+  'NOCTURNA_EXCLUSIVA',
+]
+
+// Estos tipos usan transferencia bancaria en vez de Stripe
+const BANK_TRANSFER_EVENT_TYPES = [
   'GRUPO_SENTADO',
   'GRUPO_PICA_PICA',
   'NOCTURNA_EXCLUSIVA',
@@ -329,41 +336,13 @@ export async function POST(req: NextRequest) {
       }
 
     } else if (deposit_amount && deposit_amount > 0) {
-      // → Generar link de Stripe + WhatsApp con link de pago
-      try {
-        const stripe = getStripe()
-        const session = await stripe.checkout.sessions.create({
-          payment_method_types: ['card'],
-          line_items: [{
-            price_data: {
-              currency: 'eur',
-              product_data: {
-                name: `Señal Reserva — ${findMenu(menu_code!)?.name || 'Evento'}`,
-                description: `${personas} personas, ${fecha} ${hora}h`,
-              },
-              unit_amount: Math.round(deposit_amount * 100),
-            },
-            quantity: 1,
-          }],
-          mode: 'payment',
-          success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/success?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/cancel`,
-          metadata: { reservation_id: reservationId },
-          expires_at: Math.floor(Date.now() / 1000) + (PAYMENT_DEADLINE_DAYS * 24 * 60 * 60),
-        })
+      const useBankTransfer = event_type && BANK_TRANSFER_EVENT_TYPES.includes(event_type)
 
-        stripeUrl = session.url
-
-        // Guardar URL en la reserva
-        await supabaseAdmin
-          .from('reservations')
-          .update({ stripe_checkout_url: session.url, stripe_session_id: session.id })
-          .eq('id', reservationId)
-
-        // Enviar Email con link de pago
+      if (useBankTransfer) {
+        // → Transferencia bancaria para grupos
         if (safeEmail) {
           try {
-            await sendPaymentLink(safeEmail, {
+            await sendBankTransferPayment(safeEmail, {
               nombre: safeName,
               fecha: fecha!,
               hora: hora!,
@@ -371,21 +350,75 @@ export async function POST(req: NextRequest) {
               menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
               total: total_amount!,
               deposit: deposit_amount,
-              paymentUrl: session.url!,
               deadlineDays: PAYMENT_DEADLINE_DAYS,
               reservationId,
               reservationNumber,
             })
             emailStatus.clientEmail = true
           } catch (err: any) {
-            console.error('[reservations POST] ❌ Email payment error:', err?.message || err)
-            emailStatus.error += `Email pago: ${err?.message || 'Error'}. `
+            console.error('[reservations POST] ❌ Bank transfer email error:', err?.message || err)
+            emailStatus.error += `Email transferencia: ${err?.message || 'Error'}. `
           }
         }
+      } else {
+        // → Generar link de Stripe (INFANTIL_CUMPLE u otros)
+        try {
+          const stripe = getStripe()
+          const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{
+              price_data: {
+                currency: 'eur',
+                product_data: {
+                  name: `Señal Reserva — ${findMenu(menu_code!)?.name || 'Evento'}`,
+                  description: `${personas} personas, ${fecha} ${hora}h`,
+                },
+                unit_amount: Math.round(deposit_amount * 100),
+              },
+              quantity: 1,
+            }],
+            mode: 'payment',
+            success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/cancel`,
+            metadata: { reservation_id: reservationId },
+            expires_at: Math.floor(Date.now() / 1000) + (PAYMENT_DEADLINE_DAYS * 24 * 60 * 60),
+          })
 
-      } catch (stripeErr) {
-        console.error('[reservations POST] Stripe error:', stripeErr)
-        // La reserva se creó, pero no se generó Stripe. No es fatal.
+          stripeUrl = session.url
+
+          // Guardar URL en la reserva
+          await supabaseAdmin
+            .from('reservations')
+            .update({ stripe_checkout_url: session.url, stripe_session_id: session.id })
+            .eq('id', reservationId)
+
+          // Enviar Email con link de pago
+          if (safeEmail) {
+            try {
+              await sendPaymentLink(safeEmail, {
+                nombre: safeName,
+                fecha: fecha!,
+                hora: hora!,
+                personas: personas!,
+                menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
+                total: total_amount!,
+                deposit: deposit_amount,
+                paymentUrl: session.url!,
+                deadlineDays: PAYMENT_DEADLINE_DAYS,
+                reservationId,
+                reservationNumber,
+              })
+              emailStatus.clientEmail = true
+            } catch (err: any) {
+              console.error('[reservations POST] ❌ Email payment error:', err?.message || err)
+              emailStatus.error += `Email pago: ${err?.message || 'Error'}. `
+            }
+          }
+
+        } catch (stripeErr) {
+          console.error('[reservations POST] Stripe error:', stripeErr)
+          // La reserva se creó, pero no se generó Stripe. No es fatal.
+        }
       }
     }
 
@@ -395,7 +428,7 @@ export async function POST(req: NextRequest) {
       reservation_number: reservationNumber,
       message: event_type === 'RESERVA_NORMAL'
         ? `Reserva ${reservationNumber || reservationId.substring(0, 8)} confirmada.${emailStatus.clientEmail ? ' Email de confirmación enviado.' : ' ⚠️ Email no enviado.'}`
-        : `Reserva ${reservationNumber || reservationId.substring(0, 8)} creada.${emailStatus.clientEmail ? ` Email con link de pago enviado (señal ${deposit_amount}€).` : ' ⚠️ Email de pago no enviado.'}`,
+        : `Reserva ${reservationNumber || reservationId.substring(0, 8)} creada.${emailStatus.clientEmail ? (event_type && BANK_TRANSFER_EVENT_TYPES.includes(event_type) ? ` Email con datos de transferencia enviado (señal ${deposit_amount}€).` : ` Email con link de pago enviado (señal ${deposit_amount}€).`) : ' ⚠️ Email de pago no enviado.'}`,
       table_id: table_id,
       total_amount,
       deposit_amount,
