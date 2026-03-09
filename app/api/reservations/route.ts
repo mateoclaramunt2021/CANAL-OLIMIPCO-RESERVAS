@@ -282,34 +282,50 @@ export async function POST(req: NextRequest) {
 
     // ── Post-creación: Email automático ──
     let stripeUrl: string | null = null
+    let emailStatus = { clientEmail: false, restaurantEmail: false, error: '' }
 
     // → Email al restaurante siempre
-    notifyRestaurantNewReservation({
-      nombre: safeName,
-      telefono: safePhone,
-      email: safeEmail,
-      fecha: fecha!,
-      hora: hora!,
-      personas: personas!,
-      eventType: event_type as string,
-      tableId: table_id,
-      reservationId,
-      reservationNumber,
-    }).catch(err => console.error('[reservations POST] Restaurant email error:', err))
+    try {
+      await notifyRestaurantNewReservation({
+        nombre: safeName,
+        telefono: safePhone,
+        email: safeEmail,
+        fecha: fecha!,
+        hora: hora!,
+        personas: personas!,
+        eventType: event_type as string,
+        tableId: table_id,
+        reservationId,
+        reservationNumber,
+      })
+      emailStatus.restaurantEmail = true
+    } catch (err: any) {
+      console.error('[reservations POST] ❌ Restaurant email error:', err?.message || err)
+      emailStatus.error += `Restaurante: ${err?.message || 'Error'}. `
+    }
 
     if (event_type === 'RESERVA_NORMAL') {
       // → Email de confirmación directa
       if (safeEmail) {
-        sendReservationConfirmation(safeEmail, {
-          nombre: safeName,
-          fecha: fecha!,
-          hora: hora!,
-          personas: personas!,
-          tableId: table_id,
-          zone: zona || null,
-          reservationId,
-          reservationNumber,
-        }).catch(err => console.error('[reservations POST] Email error:', err))
+        try {
+          await sendReservationConfirmation(safeEmail, {
+            nombre: safeName,
+            fecha: fecha!,
+            hora: hora!,
+            personas: personas!,
+            tableId: table_id,
+            zone: zona || null,
+            reservationId,
+            reservationNumber,
+          })
+          emailStatus.clientEmail = true
+        } catch (err: any) {
+          console.error('[reservations POST] ❌ Client email error:', err?.message || err)
+          emailStatus.error += `Cliente: ${err?.message || 'Error'}. `
+        }
+      } else {
+        console.warn('[reservations POST] ⚠️ Sin email del cliente, no se envía confirmación')
+        emailStatus.error += 'Sin email del cliente. '
       }
 
     } else if (deposit_amount && deposit_amount > 0) {
@@ -346,19 +362,25 @@ export async function POST(req: NextRequest) {
 
         // Enviar Email con link de pago
         if (safeEmail) {
-          sendPaymentLink(safeEmail, {
-            nombre: safeName,
-            fecha: fecha!,
-            hora: hora!,
-            personas: personas!,
-            menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
-            total: total_amount!,
-            deposit: deposit_amount,
-            paymentUrl: session.url!,
-            deadlineDays: PAYMENT_DEADLINE_DAYS,
-            reservationId,
-            reservationNumber,
-          }).catch(err => console.error('[reservations POST] Email payment error:', err))
+          try {
+            await sendPaymentLink(safeEmail, {
+              nombre: safeName,
+              fecha: fecha!,
+              hora: hora!,
+              personas: personas!,
+              menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
+              total: total_amount!,
+              deposit: deposit_amount,
+              paymentUrl: session.url!,
+              deadlineDays: PAYMENT_DEADLINE_DAYS,
+              reservationId,
+              reservationNumber,
+            })
+            emailStatus.clientEmail = true
+          } catch (err: any) {
+            console.error('[reservations POST] ❌ Email payment error:', err?.message || err)
+            emailStatus.error += `Email pago: ${err?.message || 'Error'}. `
+          }
         }
 
       } catch (stripeErr) {
@@ -372,13 +394,16 @@ export async function POST(req: NextRequest) {
       reservation_id: reservationId,
       reservation_number: reservationNumber,
       message: event_type === 'RESERVA_NORMAL'
-        ? `Reserva ${reservationNumber || reservationId.substring(0, 8)} confirmada. Se ha enviado email de confirmación.`
-        : `Reserva ${reservationNumber || reservationId.substring(0, 8)} creada. Se ha enviado email con link de pago (señal ${deposit_amount}€).`,
+        ? `Reserva ${reservationNumber || reservationId.substring(0, 8)} confirmada.${emailStatus.clientEmail ? ' Email de confirmación enviado.' : ' ⚠️ Email no enviado.'}`
+        : `Reserva ${reservationNumber || reservationId.substring(0, 8)} creada.${emailStatus.clientEmail ? ` Email con link de pago enviado (señal ${deposit_amount}€).` : ' ⚠️ Email de pago no enviado.'}`,
       table_id: table_id,
       total_amount,
       deposit_amount,
       stripe_url: stripeUrl,
       payment_deadline: reservationData.payment_deadline,
+      email_sent: emailStatus.clientEmail,
+      restaurant_email_sent: emailStatus.restaurantEmail,
+      email_error: emailStatus.error || undefined,
     })
   } catch (err) {
     console.error('[reservations POST] Unexpected error:', err)

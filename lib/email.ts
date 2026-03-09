@@ -12,22 +12,59 @@ const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || ''
 const RESTAURANT_EMAIL = process.env.RESTAURANT_EMAIL || 'reservascanalolimpico@gmail.com'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'
 
-function getTransporter() {
+// ─── Log config al arrancar ──────────────────────────────────────────────────
+console.log(`[email] Config → GMAIL_USER=${GMAIL_USER}, PASSWORD=${GMAIL_APP_PASSWORD ? '***configurada***' : '⚠️ VACÍA'}, RESTAURANT=${RESTAURANT_EMAIL}`)
+
+let _cachedTransporter: nodemailer.Transporter | null = null
+
+function getTransporter(): nodemailer.Transporter | null {
   if (!GMAIL_APP_PASSWORD) {
-    console.warn('[email] GMAIL_APP_PASSWORD no configurada, los emails no se enviarán')
+    console.error('[email] ❌ GMAIL_APP_PASSWORD no configurada — los emails NO se enviarán')
     return null
   }
 
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: GMAIL_USER,
-      pass: GMAIL_APP_PASSWORD,
-    },
-  })
+  if (!_cachedTransporter) {
+    _cachedTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: GMAIL_USER,
+        pass: GMAIL_APP_PASSWORD,
+      },
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 50,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    })
+  }
+
+  return _cachedTransporter
 }
 
-// ─── Helper: Enviar email ───────────────────────────────────────────────────
+// ─── Verificar conexión SMTP ────────────────────────────────────────────────
+
+export async function verifyEmailConnection(): Promise<{ ok: boolean; error?: string }> {
+  const transporter = getTransporter()
+  if (!transporter) {
+    return { ok: false, error: 'GMAIL_APP_PASSWORD no configurada' }
+  }
+  try {
+    await transporter.verify()
+    console.log('[email] ✅ Conexión SMTP verificada correctamente')
+    return { ok: true }
+  } catch (err: any) {
+    console.error('[email] ❌ Verificación SMTP fallida:', err?.message || err)
+    // Resetear transporter en caso de error de conexión
+    _cachedTransporter = null
+    return { ok: false, error: err?.message || 'Error verificando SMTP' }
+  }
+}
+
+// ─── Helper: Enviar email con reintentos ────────────────────────────────────
+
+const MAX_RETRIES = 2
+const RETRY_DELAY_MS = 2000
 
 async function sendEmail(
   to: string,
@@ -37,28 +74,49 @@ async function sendEmail(
 ): Promise<{ ok: boolean; error?: string }> {
   const transporter = getTransporter()
   if (!transporter) {
-    return { ok: false, error: 'Email no configurado' }
+    console.error(`[email] ❌ No se puede enviar email a ${to}: transporter no disponible`)
+    return { ok: false, error: 'Email no configurado — GMAIL_APP_PASSWORD vacía' }
   }
 
-  try {
-    await transporter.sendMail({
-      from: `"Canal Olímpico" <${GMAIL_USER}>`,
-      to,
-      bcc: RESTAURANT_EMAIL !== to ? RESTAURANT_EMAIL : undefined,
-      subject,
-      html,
-      attachments: attachments?.map(a => ({
-        filename: a.filename,
-        content: a.content,
-        contentType: 'application/pdf',
-      })),
-    })
-    console.log(`[email] Email enviado a ${to} (bcc: ${RESTAURANT_EMAIL}): ${subject}`)
-    return { ok: true }
-  } catch (err) {
-    console.error('[email] Error enviando email:', err)
-    return { ok: false, error: 'Error al enviar email' }
+  for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+    try {
+      const info = await transporter.sendMail({
+        from: `"Canal Olímpico" <${GMAIL_USER}>`,
+        to,
+        bcc: RESTAURANT_EMAIL !== to ? RESTAURANT_EMAIL : undefined,
+        subject,
+        html,
+        attachments: attachments?.map(a => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: 'application/pdf',
+        })),
+      })
+      console.log(`[email] ✅ Email enviado a ${to} (bcc: ${RESTAURANT_EMAIL}): ${subject} [messageId: ${info.messageId}]`)
+      return { ok: true }
+    } catch (err: any) {
+      const errorMsg = err?.message || String(err)
+      console.error(`[email] ❌ Intento ${attempt}/${MAX_RETRIES + 1} fallido para ${to}: ${errorMsg}`)
+      
+      // Si es error de autenticación, no reintentar
+      if (errorMsg.includes('Invalid login') || errorMsg.includes('Username and Password not accepted') || errorMsg.includes('EAUTH')) {
+        console.error('[email] ❌ Error de AUTENTICACIÓN — Verifica GMAIL_USER y GMAIL_APP_PASSWORD')
+        _cachedTransporter = null
+        return { ok: false, error: `Error de autenticación Gmail: ${errorMsg}` }
+      }
+      
+      if (attempt <= MAX_RETRIES) {
+        console.log(`[email] ⏳ Reintentando en ${RETRY_DELAY_MS}ms...`)
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS))
+        // Resetear transporter para reconectar
+        _cachedTransporter = null
+      } else {
+        return { ok: false, error: `Error enviando email tras ${MAX_RETRIES + 1} intentos: ${errorMsg}` }
+      }
+    }
   }
+
+  return { ok: false, error: 'Error inesperado enviando email' }
 }
 
 // ─── Helper: Formatear fecha ────────────────────────────────────────────────

@@ -49,22 +49,13 @@ const ALLOWED_ORIGINS = [
 // ─── Security headers ────────────────────────────────────────────────────────
 const SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
+  'X-Frame-Options': 'SAMEORIGIN',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob: https:",
-    "connect-src 'self' https://*.supabase.co https://api.stripe.com https://*.netlify.app https://canalolimpicorestaurante.com",
-    "frame-src 'self' https://js.stripe.com",
-    "object-src 'none'",
-    "base-uri 'self'",
-  ].join('; '),
+  // CSP removed — was blocking CSS/JS/fonts on tablet TPV browsers.
+  // Security is enforced via auth guards, API keys, and rate limiting instead.
 }
 
 // ─── Webhook paths (skip rate-limit, validated by their own signatures) ──────
@@ -141,19 +132,8 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // ══ Protected dashboard paths → check Supabase auth cookie ══
-  if (PROTECTED_PATHS.some(p => pathname.startsWith(p))) {
-    const supabaseAuth = req.cookies.get('sb-access-token')?.value
-      || req.cookies.get('supabase-auth-token')?.value
-
-    // If no auth cookie at all, redirect to login
-    // (Supabase client-side auth will handle the actual validation)
-    // This is just a first-gate check
-    if (!supabaseAuth && !req.cookies.has('sb:token')) {
-      // Allow if it could be a client-side SPA route (the page itself checks auth)
-      // We just add headers and let through — the page component handles redirects
-    }
-  }
+  // ══ Protected dashboard paths ══
+  // Auth is enforced client-side via DashboardLayout auth guard
 
   // ══ Build response with security headers ══
   const res = NextResponse.next()

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
+import EditableField from '@/components/ui/EditableField'
 
 interface Reservation {
   id: string
@@ -66,11 +67,63 @@ const menuLabels: Record<string, string> = {
   menu_pica_30: 'Menú Pica-Pica 30€',
 }
 
-function InfoItem({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+// ─── Toast System ───────────────────────────────────────────────────────────
+
+interface Toast {
+  id: number
+  message: string
+  type: 'success' | 'error' | 'info'
+}
+
+let toastId = 0
+
+function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
   return (
-    <div className="p-3 bg-slate-50/80 rounded-xl">
-      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p>
-      <p className={`text-sm font-semibold mt-1 ${highlight ? 'text-blue-600' : 'text-slate-900'}`}>{value}</p>
+    <div className="fixed bottom-6 right-6 z-50 space-y-2 max-w-sm">
+      {toasts.map(t => (
+        <div
+          key={t.id}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium animate-slide-up backdrop-blur-sm ${
+            t.type === 'success' ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800' :
+            t.type === 'error' ? 'bg-red-50/95 border-red-200 text-red-800' :
+            'bg-blue-50/95 border-blue-200 text-blue-800'
+          }`}
+        >
+          <span className="flex-shrink-0">
+            {t.type === 'success' ? '✅' : t.type === 'error' ? '❌' : 'ℹ️'}
+          </span>
+          <span className="flex-1">{t.message}</span>
+          <button onClick={() => onDismiss(t.id)} className="text-current opacity-50 hover:opacity-100 font-bold">&times;</button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── Confirm Modal ──────────────────────────────────────────────────────────
+
+function ConfirmModal({ title, message, confirmLabel, confirmColor, onConfirm, onCancel }: {
+  title: string
+  message: string
+  confirmLabel: string
+  confirmColor: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
+        <p className="text-sm text-slate-600 mb-6">{message}</p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-medium border border-slate-200 hover:bg-slate-50 transition-colors">
+            Cancelar
+          </button>
+          <button onClick={onConfirm} className={`px-4 py-2 rounded-xl text-sm font-medium text-white shadow-sm transition-colors ${confirmColor}`}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -83,9 +136,20 @@ export default function ReservationDetail() {
   const [whatsappMsg, setWhatsappMsg] = useState('')
   const [sendingWA, setSendingWA] = useState(false)
   const [calling, setCalling] = useState(false)
-  const [actionFeedback, setActionFeedback] = useState('')
-  const [dishSelections, setDishSelections] = useState<any[]>([])
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null) // tracks which type is sending
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; confirmLabel: string; confirmColor: string; onConfirm: () => void } | null>(null)
   const [dishSummary, setDishSummary] = useState<any>(null)
+
+  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+    const id = ++toastId
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000)
+  }, [])
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
 
   useEffect(() => {
     if (id) {
@@ -121,10 +185,45 @@ export default function ReservationDetail() {
     }
   }
 
+  // ─── Generic field update ──────────────────────────────────────────────────
+  const updateField = async (field: string, value: string): Promise<boolean> => {
+    try {
+      const payload: Record<string, unknown> = {}
+      if (field === 'personas') {
+        payload[field] = parseInt(value)
+      } else {
+        payload[field] = value
+      }
+
+      const res = await fetch(`/api/reservations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (data.reservation) {
+          setReservation(prev => prev ? { ...prev, ...data.reservation, messages: prev.messages, call_logs: prev.call_logs, payments: prev.payments } : prev)
+        } else {
+          fetchReservation()
+        }
+        addToast(`${field.replace('customer_', '').replace('_', ' ')} actualizado`, 'success')
+        return true
+      } else {
+        const data = await res.json()
+        addToast(data.error || 'Error al guardar', 'error')
+        return false
+      }
+    } catch {
+      addToast('Error de conexión', 'error')
+      return false
+    }
+  }
+
   const sendWhatsApp = async () => {
     if (!whatsappMsg.trim() || !reservation?.customer_phone) return
     setSendingWA(true)
-    setActionFeedback('')
     try {
       const res = await fetch('/api/actions/whatsapp/send', {
         method: 'POST',
@@ -136,14 +235,14 @@ export default function ReservationDetail() {
         })
       })
       if (res.ok) {
-        setActionFeedback('WhatsApp enviado correctamente')
+        addToast('WhatsApp enviado correctamente', 'success')
         setWhatsappMsg('')
         fetchReservation()
       } else {
-        setActionFeedback('Error enviando WhatsApp')
+        addToast('Error enviando WhatsApp', 'error')
       }
     } catch {
-      setActionFeedback('Error de conexión')
+      addToast('Error de conexión', 'error')
     } finally {
       setSendingWA(false)
     }
@@ -152,7 +251,6 @@ export default function ReservationDetail() {
   const makeCall = async () => {
     if (!reservation?.customer_phone) return
     setCalling(true)
-    setActionFeedback('')
     try {
       const res = await fetch('/api/actions/call', {
         method: 'POST',
@@ -163,19 +261,39 @@ export default function ReservationDetail() {
         })
       })
       if (res.ok) {
-        setActionFeedback('Llamada iniciada correctamente')
+        addToast('Llamada iniciada correctamente', 'success')
         fetchReservation()
       } else {
-        setActionFeedback('Error iniciando llamada')
+        addToast('Error iniciando llamada', 'error')
       }
     } catch {
-      setActionFeedback('Error de conexión')
+      addToast('Error de conexión', 'error')
     } finally {
       setCalling(false)
     }
   }
 
   const updateStatus = async (newStatus: string) => {
+    // Destructive actions need confirmation
+    if (newStatus === 'CANCELED' || newStatus === 'NO_SHOW') {
+      setConfirmAction({
+        title: newStatus === 'CANCELED' ? '¿Cancelar reserva?' : '¿Marcar como No Show?',
+        message: newStatus === 'CANCELED'
+          ? 'Esta acción cancelará la reserva. El cliente recibirá una notificación si tiene email.'
+          : 'Esta acción marcará al cliente como no presentado.',
+        confirmLabel: newStatus === 'CANCELED' ? 'Sí, cancelar' : 'Sí, No Show',
+        confirmColor: 'bg-red-600 hover:bg-red-700',
+        onConfirm: async () => {
+          setConfirmAction(null)
+          await doUpdateStatus(newStatus)
+        },
+      })
+      return
+    }
+    await doUpdateStatus(newStatus)
+  }
+
+  const doUpdateStatus = async (newStatus: string) => {
     try {
       const res = await fetch(`/api/reservations/${id}`, {
         method: 'PATCH',
@@ -183,11 +301,35 @@ export default function ReservationDetail() {
         body: JSON.stringify({ status: newStatus })
       })
       if (res.ok) {
-        setActionFeedback(`Estado actualizado a ${statusLabels[newStatus] || newStatus}`)
+        addToast(`Estado → ${statusLabels[newStatus] || newStatus}`, 'success')
         fetchReservation()
+      } else {
+        addToast('Error actualizando estado', 'error')
       }
     } catch {
-      setActionFeedback('Error actualizando estado')
+      addToast('Error de conexión', 'error')
+    }
+  }
+
+  const resendEmail = async (type: 'auto' | 'restaurant' | 'reminder' = 'auto') => {
+    if (!reservation) return
+    setResendingEmail(type)
+    try {
+      const res = await fetch(`/api/reservations/${id}/resend-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type })
+      })
+      const data = await res.json()
+      if (res.ok && data.ok) {
+        addToast(data.message, 'success')
+      } else {
+        addToast(data.error || 'Error al enviar email', 'error')
+      }
+    } catch {
+      addToast('Error de conexión al enviar email', 'error')
+    } finally {
+      setResendingEmail(null)
     }
   }
 
@@ -222,6 +364,15 @@ export default function ReservationDetail() {
     ? new Date(reservation.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : '—'
 
+  const horaDisplay = reservation.hora_inicio?.substring(0, 5) || '—'
+
+  // Available time slots for the select
+  const timeSlots = [
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+    '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00',
+  ]
+
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full">
@@ -248,40 +399,120 @@ export default function ReservationDetail() {
           </span>
         </div>
 
-        {/* Feedback */}
-        {actionFeedback && (
-          <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200 shadow-sm text-sm font-medium text-blue-700">
-            {actionFeedback}
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column: Info */}
+          {/* ═══ Left column: Info ═══ */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Reservation Details */}
+
+            {/* ── Reservation Details (EDITABLE) ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-4 sm:p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Información de la Reserva</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">Información de la Reserva</h2>
+                <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded-md">✏️ Clic para editar</span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Nº Reserva — not editable */}
                 {reservation.reservation_number && (
                   <div className="p-3 rounded-xl sm:col-span-2" style={{ background: '#fdf6e8', border: '1px solid #e8d5b2' }}>
-                    <p className="text-xs font-medium uppercase tracking-wider" style={{ color: '#92681e' }}>Nº Reserva</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#92681e' }}>Nº Reserva</p>
                     <p className="text-lg font-bold font-mono mt-1" style={{ color: '#B08D57' }}>{reservation.reservation_number}</p>
                   </div>
                 )}
-                <InfoItem label="Cliente" value={reservation.customer_name || 'N/A'} />
-                <InfoItem label="Teléfono" value={reservation.customer_phone || 'N/A'} />
-                <InfoItem label="Email" value={reservation.customer_email || 'N/A'} />
-                <InfoItem label="Tipo de Evento" value={eventLabels[reservation.event_type] || reservation.event_type} />
-                <InfoItem label="Fecha" value={fechaFormatted} />
-                <InfoItem label="Horario" value={`${reservation.hora_inicio || '—'} – ${reservation.hora_fin || '—'}`} />
-                <InfoItem label="Personas" value={String(reservation.personas || 0)} />
-                <InfoItem label="Mesa" value={reservation.table_id || 'Sin asignar'} />
-                <InfoItem label="Menú" value={reservation.menu_code ? (menuLabels[reservation.menu_code] || reservation.menu_code) : 'N/A'} />
-                <InfoItem label="Total" value={reservation.total_amount ? `${reservation.total_amount.toFixed(2)}€` : '—'} highlight />
-                <InfoItem label="Señal (40%)" value={reservation.deposit_amount ? `${reservation.deposit_amount.toFixed(2)}€` : '—'} />
-                <InfoItem label="Señal Pagada" value={reservation.status === 'CONFIRMED' && reservation.stripe_session_id ? 'Sí' : 'No'} />
-                <InfoItem label="Límite de Pago" value={reservation.payment_deadline ? new Date(reservation.payment_deadline).toLocaleString('es-ES') : 'N/A'} />
+
+                {/* Editable fields */}
+                <EditableField
+                  label="Cliente"
+                  value={reservation.customer_name || ''}
+                  type="text"
+                  onSave={(v) => updateField('customer_name', v)}
+                  placeholder="Nombre del cliente"
+                />
+                <EditableField
+                  label="Teléfono"
+                  value={reservation.customer_phone || ''}
+                  type="tel"
+                  onSave={(v) => updateField('customer_phone', v)}
+                  placeholder="+34 600 000 000"
+                />
+                <EditableField
+                  label="Email"
+                  value={reservation.customer_email || ''}
+                  type="email"
+                  onSave={(v) => updateField('customer_email', v)}
+                  placeholder="email@ejemplo.com"
+                />
+                <EditableField
+                  label="Tipo de Evento"
+                  value={reservation.event_type}
+                  type="select"
+                  options={[
+                    { value: 'RESERVA_NORMAL', label: 'Reserva Normal' },
+                    { value: 'INFANTIL_CUMPLE', label: 'Infantil / Cumple' },
+                    { value: 'GRUPO_SENTADO', label: 'Grupo Sentado' },
+                    { value: 'GRUPO_PICA_PICA', label: 'Grupo Pica-Pica' },
+                    { value: 'NOCTURNA_EXCLUSIVA', label: 'Nocturna Exclusiva' },
+                  ]}
+                  onSave={(v) => updateField('event_type', v)}
+                />
+                <EditableField
+                  label="Fecha"
+                  value={reservation.fecha || ''}
+                  type="date"
+                  onSave={(v) => updateField('fecha', v)}
+                />
+                <EditableField
+                  label="Hora Inicio"
+                  value={horaDisplay}
+                  type="select"
+                  options={timeSlots.map(t => ({ value: t, label: `${t}h` }))}
+                  onSave={(v) => updateField('hora_inicio', v)}
+                />
+                <EditableField
+                  label="Personas"
+                  value={String(reservation.personas || 0)}
+                  type="number"
+                  min={1}
+                  max={200}
+                  onSave={(v) => updateField('personas', v)}
+                />
+                <EditableField
+                  label="Mesa"
+                  value={reservation.table_id || ''}
+                  type="text"
+                  onSave={(v) => updateField('table_id', v)}
+                  placeholder="Ej: F10, I3"
+                />
+
+                {/* Read-only financial fields */}
+                <div className="p-3 bg-slate-50/80 rounded-xl">
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Menú</p>
+                  <p className="text-sm font-semibold mt-1 text-slate-900">{reservation.menu_code ? (menuLabels[reservation.menu_code] || reservation.menu_code) : 'N/A'}</p>
+                </div>
+                <div className="p-3 bg-slate-50/80 rounded-xl">
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Total</p>
+                  <p className="text-sm font-semibold mt-1 text-[#B08D57]">{reservation.total_amount ? `${reservation.total_amount.toFixed(2)}€` : '—'}</p>
+                </div>
+                <div className="p-3 bg-slate-50/80 rounded-xl">
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Señal (40%)</p>
+                  <p className="text-sm font-semibold mt-1 text-slate-900">{reservation.deposit_amount ? `${reservation.deposit_amount.toFixed(2)}€` : '—'}</p>
+                </div>
+                <div className="p-3 bg-slate-50/80 rounded-xl">
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Señal Pagada</p>
+                  <p className={`text-sm font-semibold mt-1 ${reservation.status === 'CONFIRMED' && reservation.stripe_session_id ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {reservation.status === 'CONFIRMED' && reservation.stripe_session_id ? '✅ Sí' : 'No'}
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-50/80 rounded-xl">
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Horario</p>
+                  <p className="text-sm font-semibold mt-1 text-slate-900">
+                    {reservation.hora_inicio?.substring(0, 5) || '—'} – {reservation.hora_fin?.substring(0, 5) || '—'}
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-50/80 rounded-xl">
+                  <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Límite de Pago</p>
+                  <p className="text-sm font-semibold mt-1 text-slate-900">{reservation.payment_deadline ? new Date(reservation.payment_deadline).toLocaleString('es-ES') : 'N/A'}</p>
+                </div>
               </div>
+
               {reservation.canceled_reason && (
                 <div className="mt-4 p-3 bg-red-50 rounded-xl border border-red-100">
                   <p className="text-xs font-medium text-red-500 uppercase tracking-wider">Motivo de Cancelación</p>
@@ -293,7 +524,7 @@ export default function ReservationDetail() {
               </p>
             </div>
 
-            {/* Status Actions */}
+            {/* ── Status Actions ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Cambiar Estado</h2>
               <div className="flex flex-wrap gap-2">
@@ -314,7 +545,7 @@ export default function ReservationDetail() {
               </div>
             </div>
 
-            {/* Dish Selection Status */}
+            {/* ── Dish Selection Status ── */}
             {reservation.menu_code && ['menu_grupo_34', 'menu_grupo_29', 'menu_infantil'].includes(reservation.menu_code) && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
                 <h2 className="text-lg font-semibold text-slate-900 mb-4">
@@ -381,7 +612,7 @@ export default function ReservationDetail() {
               </div>
             )}
 
-            {/* Messages */}
+            {/* ── Messages ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">
                 Mensajes WhatsApp
@@ -405,7 +636,6 @@ export default function ReservationDetail() {
                   ))
                 )}
               </div>
-              {/* Send WhatsApp */}
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -425,7 +655,7 @@ export default function ReservationDetail() {
               </div>
             </div>
 
-            {/* Call Logs */}
+            {/* ── Call Logs ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">
                 Registro de Llamadas (VAPI)
@@ -462,12 +692,67 @@ export default function ReservationDetail() {
             </div>
           </div>
 
-          {/* Right column: Actions & Payments */}
+          {/* ═══ Right column: Actions & Payments ═══ */}
           <div className="space-y-6">
-            {/* Quick Actions */}
+
+            {/* ── Email Actions ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Acciones Rápidas</h2>
-              <div className="space-y-3">
+              <h2 className="text-lg font-semibold text-slate-900 mb-1">Emails</h2>
+              <p className="text-xs text-slate-400 mb-4">Enviar correos al cliente</p>
+              <div className="space-y-2.5">
+                {/* Confirmación */}
+                <button
+                  onClick={() => resendEmail('auto')}
+                  disabled={resendingEmail !== null || !reservation.customer_email}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-[#B08D57] to-[#96784a] text-white rounded-xl text-sm font-medium hover:from-[#96784a] hover:to-[#7d6540] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  title={!reservation.customer_email ? 'Sin email del cliente' : ''}
+                >
+                  {resendingEmail === 'auto' ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Enviando…
+                    </span>
+                  ) : '📧 Enviar Confirmación'}
+                </button>
+
+                {/* Recordatorio */}
+                <button
+                  onClick={() => resendEmail('reminder')}
+                  disabled={resendingEmail !== null || !reservation.customer_email}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-xl text-sm font-medium hover:from-amber-600 hover:to-amber-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  {resendingEmail === 'reminder' ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Enviando…
+                    </span>
+                  ) : '📌 Enviar Recordatorio'}
+                </button>
+
+                {/* Restaurante */}
+                <button
+                  onClick={() => resendEmail('restaurant')}
+                  disabled={resendingEmail !== null}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-stone-500 to-stone-600 text-white rounded-xl text-sm font-medium hover:from-stone-600 hover:to-stone-700 transition-all disabled:opacity-50 shadow-sm"
+                >
+                  {resendingEmail === 'restaurant' ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Enviando…
+                    </span>
+                  ) : '📋 Notificar Restaurante'}
+                </button>
+
+                {!reservation.customer_email && (
+                  <p className="text-xs text-amber-600 px-1">⚠️ Añade un email al cliente para enviar correos</p>
+                )}
+              </div>
+            </div>
+
+            {/* ── Quick Actions ── */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Acciones</h2>
+              <div className="space-y-2.5">
                 <button
                   onClick={makeCall}
                   disabled={calling}
@@ -496,7 +781,7 @@ export default function ReservationDetail() {
               </div>
             </div>
 
-            {/* Payments */}
+            {/* ── Payments ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Pagos</h2>
               <div className="space-y-3">
@@ -516,8 +801,8 @@ export default function ReservationDetail() {
               </div>
             </div>
 
-            {/* Menu Info */}
-            {reservation.menu_payload && (
+            {/* ── Menu Info ── */}
+            {reservation.menu_payload && Object.keys(reservation.menu_payload).length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
                 <h2 className="text-lg font-semibold text-slate-900 mb-4">Menú Seleccionado</h2>
                 <pre className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl overflow-auto border border-slate-100 whitespace-pre-wrap">
@@ -526,7 +811,7 @@ export default function ReservationDetail() {
               </div>
             )}
 
-            {/* Reservation Source */}
+            {/* ── Tech Info ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
               <h2 className="text-lg font-semibold text-slate-900 mb-4">Info Técnica</h2>
               <div className="space-y-2 text-xs text-slate-500">
@@ -537,6 +822,21 @@ export default function ReservationDetail() {
             </div>
           </div>
         </div>
+
+        {/* ═══ Toasts ═══ */}
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+        {/* ═══ Confirm Modal ═══ */}
+        {confirmAction && (
+          <ConfirmModal
+            title={confirmAction.title}
+            message={confirmAction.message}
+            confirmLabel={confirmAction.confirmLabel}
+            confirmColor={confirmAction.confirmColor}
+            onConfirm={confirmAction.onConfirm}
+            onCancel={() => setConfirmAction(null)}
+          />
+        )}
       </div>
     </DashboardLayout>
   )

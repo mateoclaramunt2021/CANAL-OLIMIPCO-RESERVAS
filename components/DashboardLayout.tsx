@@ -48,6 +48,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // ── Auth guard: redirect to /login if no session ──
+  useEffect(() => {
+    let cancelled = false
+    supabase.auth.getUser().then(({ data }) => {
+      if (cancelled) return
+      if (!data.user) {
+        router.replace('/login')
+      } else {
+        setAuthChecked(true)
+      }
+    })
+    return () => { cancelled = true }
+  }, [router])
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -62,6 +77,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
   }, [])
+
+  // Show nothing until auth is verified (prevents flash of dashboard)
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#f5f3ee' }}>
+        <div className="text-center">
+          <div className="w-10 h-10 border-3 border-t-transparent rounded-full animate-spin mx-auto mb-3" style={{ borderColor: '#B08D57', borderTopColor: 'transparent' }} />
+          <p className="text-sm" style={{ color: '#8a8578' }}>Verificando sesión...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
