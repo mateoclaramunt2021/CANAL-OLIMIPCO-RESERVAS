@@ -132,8 +132,14 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // ══ Protected dashboard paths ══
-  // Auth is enforced client-side via DashboardLayout auth guard
+  // ══ Protected dashboard paths — require sb-access-token cookie ══
+  if (PROTECTED_PATHS.some(p => pathname.startsWith(p))) {
+    const hasAuth = req.cookies.has('sb-access-token')
+    if (!hasAuth) {
+      const loginUrl = new URL('/login', req.url)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
 
   // ══ Build response with security headers ══
   const res = NextResponse.next()

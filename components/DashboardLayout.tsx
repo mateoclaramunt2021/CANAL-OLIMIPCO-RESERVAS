@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -63,19 +62,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // ── Auth guard ──
+  // ── Auth guard: check cookie (no JS-dependency on Supabase client) ──
   useEffect(() => {
-    let cancelled = false
-    supabase.auth.getUser().then(({ data }) => {
-      if (cancelled) return
-      if (!data.user) {
-        router.replace('/login')
-      } else {
-        setAuthChecked(true)
-      }
-    })
-    return () => { cancelled = true }
-  }, [router])
+    // Check if the sb-logged-in cookie exists
+    const hasAuthCookie = document.cookie.split(';').some(c => c.trim().startsWith('sb-logged-in='))
+    if (!hasAuthCookie) {
+      // No cookie = not logged in, redirect to login
+      window.location.href = '/login'
+    } else {
+      setAuthChecked(true)
+    }
+  }, [])
 
   useEffect(() => { setSidebarOpen(false) }, [pathname])
 
@@ -104,9 +101,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
+  const handleLogout = () => {
+    // Server-side logout (clears cookies, works without JS)
+    window.location.href = '/api/auth/logout'
   }
 
   const isActive = (href: string) =>

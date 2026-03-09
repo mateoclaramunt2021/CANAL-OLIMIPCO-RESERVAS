@@ -1,91 +1,13 @@
-'use client'
-
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-
 /* ═══════════════════════════════════════════════════════════════════════════
-   LOGIN — 100% inline styles for maximum tablet/TPV browser compatibility
+   LOGIN — Server Component + HTML form POST
+   Works on ANY browser (including tablets without JS)
+   Same visual style, 100% inline styles
    ═══════════════════════════════════════════════════════════════════════════ */
 
-export default function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const router = useRouter()
-
-  const validateForm = () => {
-    if (!email.trim()) {
-      setError('El correo electrónico es obligatorio')
-      return false
-    }
-    if (!password.trim()) {
-      setError('La contraseña es obligatoria')
-      return false
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('El correo electrónico no tiene un formato válido')
-      return false
-    }
-    return true
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setError('')
-
-    if (!validateForm()) return
-
-    setLoading(true)
-    try {
-      // Test: can we reach Supabase at all?
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      if (!supabaseUrl) {
-        setError('ERROR CONFIG: NEXT_PUBLIC_SUPABASE_URL no está configurada')
-        setLoading(false)
-        return
-      }
-
-      const result = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim()
-      })
-
-      if (result.error) {
-        // Show detailed error for debugging
-        setError(`Auth error: ${result.error.message} (${result.error.status || 'no status'})`)
-      } else if (result.data && result.data.user) {
-        // Try saving session manually before redirect
-        try {
-          if (result.data.session) {
-            // Force persist the session
-            await supabase.auth.setSession({
-              access_token: result.data.session.access_token,
-              refresh_token: result.data.session.refresh_token,
-            })
-          }
-        } catch (sessionErr) {
-          // Session save failed but we still have the token in memory
-          console.warn('Session persist warning:', sessionErr)
-        }
-        // Use full page navigation (not SPA router) for max compatibility
-        window.location.href = '/dashboard'
-      } else {
-        setError('Login OK pero no se recibió usuario. Respuesta: ' + JSON.stringify(result.data).substring(0, 200))
-      }
-    } catch (err: any) {
-      console.error('Login error:', err)
-      // Show the full error for debugging on tablet
-      const msg = err && typeof err === 'object' 
-        ? (err.message || JSON.stringify(err).substring(0, 300))
-        : String(err)
-      setError('Error de conexión: ' + msg)
-    } finally {
-      setLoading(false)
-    }
-  }
+export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; email?: string }> }) {
+  const params = await searchParams
+  const error = params?.error || ''
+  const savedEmail = params?.email || ''
 
   return (
     <div style={{
@@ -158,8 +80,8 @@ export default function Login() {
           }} />
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin}>
+        {/* HTML Form — POST to server API (no JavaScript needed) */}
+        <form method="POST" action="/api/auth/login">
           {error && (
             <div style={{
               background: '#fef2f2',
@@ -186,11 +108,12 @@ export default function Login() {
             </label>
             <input
               id="email"
+              name="email"
               type="email"
               placeholder="usuario@canalolimpico.com"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError('') }}
+              defaultValue={savedEmail}
               required
+              autoComplete="email"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -200,7 +123,6 @@ export default function Login() {
                 outline: 'none',
                 background: '#ffffff',
                 boxSizing: 'border-box',
-                WebkitAppearance: 'none',
               }}
             />
           </div>
@@ -217,11 +139,11 @@ export default function Login() {
             </label>
             <input
               id="password"
+              name="password"
               type="password"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError('') }}
               required
+              autoComplete="current-password"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -231,30 +153,26 @@ export default function Login() {
                 outline: 'none',
                 background: '#ffffff',
                 boxSizing: 'border-box',
-                WebkitAppearance: 'none',
               }}
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
             style={{
               width: '100%',
               padding: '14px 16px',
-              background: loading ? '#93a3b8' : 'linear-gradient(135deg, #2563eb, #7c3aed)',
+              background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
               color: '#ffffff',
               fontWeight: 600,
               fontSize: '16px',
               border: 'none',
               borderRadius: '12px',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
-              opacity: loading ? 0.7 : 1,
-              WebkitAppearance: 'none',
             }}
           >
-            {loading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
+            Iniciar Sesión
           </button>
         </form>
 
