@@ -33,24 +33,28 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     setError('')
 
     if (!validateForm()) return
 
     setLoading(true)
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const result = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim()
       })
 
-      if (error) {
-        setError(error.message)
-      } else if (data.user) {
-        router.push('/dashboard')
+      if (result.error) {
+        setError(result.error.message || 'Error de autenticación')
+      } else if (result.data && result.data.user) {
+        window.location.href = '/dashboard'
+      } else {
+        setError('No se pudo iniciar sesión')
       }
-    } catch (err) {
-      setError('Error inesperado. Por favor, inténtalo de nuevo.')
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setError(err && err.message ? err.message : 'Error inesperado. Por favor, inténtalo de nuevo.')
     } finally {
       setLoading(false)
     }
