@@ -1062,6 +1062,7 @@ export default function Home() {
               <p>Lunes a Viernes: 8:00 – 18:00</p>
               <p>Sábados y Domingos: 9:00 – 18:00</p>
               <p style={{ marginTop: 12 }} className="foot__highlight">📞 Reservas: <a href="tel:930347246">930 34 72 46</a></p>
+              <a href="/login" className="foot__admin" style={{ marginTop: 16 }}>Panel</a>
             </div>
             <div className="foot__col">
               <h4>Legal</h4>
@@ -1076,7 +1077,6 @@ export default function Home() {
           </div>
           <div className="foot__line" />
           <div className="foot__bottom">
-            <a href="/login" className="foot__admin">Panel</a>
             <p>© {new Date().getFullYear()} Canal Olímpico · Dalia Grup — Todos los derechos reservados</p>
           </div>
         </div>
