@@ -12,7 +12,8 @@ const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || ''
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || ''
 const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID || ''
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'
+// Hardcoded to avoid Netlify deploy-preview URLs in SMS links
+const SITE_URL = 'https://canalolimpicorestaurante.com'
 
 let _client: twilio.Twilio | null = null
 
@@ -130,7 +131,7 @@ export async function sendGroupReservationLinkSMS(
     mode: 'evento',
   })
 
-  const url = `${SITE_URL}/reservations/new?${params.toString()}`
+  const url = `${SITE_URL}/reservar?${params.toString()}`
 
   const body = [
     `Canal Olimpico - Reserva de Grupo`,
