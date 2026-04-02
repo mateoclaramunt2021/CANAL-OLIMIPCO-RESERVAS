@@ -61,8 +61,6 @@ const SECURITY_HEADERS: Record<string, string> = {
 
 // ─── Webhook paths (skip rate-limit, validated by their own signatures) ──────
 const WEBHOOK_PATHS = [
-  '/api/webhooks/stripe',
-  '/api/webhooks/whatsapp',
   '/api/webhooks/bapi',
   '/api/vapi/webhook',
 ]

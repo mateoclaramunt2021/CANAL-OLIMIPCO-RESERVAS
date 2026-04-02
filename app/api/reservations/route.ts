@@ -7,32 +7,30 @@ import { sanitize, sanitizeObject, isValidPhone, isBot, isTooFast } from '@/lib/
 import { notifyNewReservation } from '@/lib/telegram'
 import { sendReservationConfirmationSMS, sendBankTransferSMS } from '@/lib/sms'
 
-// ─── Generar número de reserva secuencial ────────────────────────────────────
-// Formato: CO-YYYYMMDD-NNN (ej: CO-20260301-001)
-async function generateReservationNumber(fecha: string): Promise<string> {
-  const dateStr = fecha.replace(/-/g, '') // '2026-03-01' → '20260301'
-  const prefix = `CO-${dateStr}-`
+// ─── Generar código de reserva corto (4 dígitos) ─────────────────────────────
+// Formato: 4 dígitos (ej: 4521) — fácil de decir y entender por teléfono
+async function generateReservationNumber(): Promise<string> {
+  const MAX_ATTEMPTS = 20
 
-  try {
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const code = String(Math.floor(1000 + Math.random() * 9000)) // 1000-9999
+
+    // Verificar que no esté en uso en reservas activas futuras
     const { data } = await supabaseAdmin
       .from('reservations')
-      .select('reservation_number')
-      .like('reservation_number', `${prefix}%`)
-      .order('reservation_number', { ascending: false })
+      .select('id')
+      .eq('reservation_number', code)
+      .in('status', ['HOLD_BLOCKED', 'CONFIRMED', 'PENDING_PAYMENT'])
+      .gte('fecha', new Date().toISOString().split('T')[0])
       .limit(1)
 
-    let seq = 1
-    if (data && data.length > 0 && data[0].reservation_number) {
-      const lastNum = parseInt(data[0].reservation_number.split('-').pop() || '0')
-      seq = lastNum + 1
+    if (!data || data.length === 0) {
+      return code
     }
-
-    return `${prefix}${String(seq).padStart(3, '0')}`
-  } catch (err) {
-    console.warn('[reservations] Error generating reservation_number, using fallback:', err)
-    // Fallback: usar timestamp si falla la consulta
-    return `${prefix}${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}`
   }
+
+  // Fallback extremo: usar timestamp
+  return String(Date.now()).slice(-4)
 }
 
 // ─── Tipos válidos de evento ─────────────────────────────────────────────────
@@ -250,7 +248,7 @@ export async function POST(req: NextRequest) {
     // Generar número de reserva
     let reservationNumber: string | null = null
     try {
-      reservationNumber = await generateReservationNumber(fecha!)
+      reservationNumber = await generateReservationNumber()
       reservationData.reservation_number = reservationNumber
     } catch (err) {
       console.warn('[reservations POST] Could not generate reservation_number:', err)

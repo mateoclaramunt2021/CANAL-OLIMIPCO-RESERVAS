@@ -42,21 +42,6 @@ export async function POST(req: NextRequest) {
       return redirect(`Estado → ${statusLabels[status] || status}`)
     }
 
-    if (action === 'whatsapp') {
-      const message = form.get('message') as string
-      const phone = form.get('phone') as string
-      if (!message || !phone) return redirect(undefined, 'Mensaje y teléfono requeridos')
-
-      const res = await fetch(`${baseUrl}/api/actions/whatsapp/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: phone, message, reservation_id: id }),
-      })
-
-      if (!res.ok) return redirect(undefined, 'Error enviando WhatsApp')
-      return redirect('WhatsApp enviado')
-    }
-
     if (action === 'call') {
       const phone = form.get('phone') as string
       if (!phone) return redirect(undefined, 'Teléfono requerido')

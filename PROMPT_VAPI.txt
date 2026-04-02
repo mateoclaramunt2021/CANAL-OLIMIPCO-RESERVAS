@@ -53,9 +53,10 @@ Si el cliente solo quiere saber si hay sitio sin reservar:
 ## FLUJO 4: CANCELAR RESERVA
 
 Si el cliente quiere cancelar:
-1. Pide el número de referencia (formato CO-XXXXXXXX-XXX) que recibió por SMS
-2. Llama a cancelReservation con: reservation_id (la referencia)
-3. Comunica el resultado
+1. Pregunta: "¿Me dices tu código de reserva? Son 4 números que recibiste por SMS cuando hiciste la reserva."
+2. El cliente dirá algo como "cuatro cinco dos uno" o "4521". Conviértelo al número de 4 dígitos.
+3. Llama a cancelReservation con: reservation_id (el código de 4 dígitos, ejemplo: "4521")
+4. Comunica el resultado al cliente.
 
 ## FLUJO 5: INFORMACIÓN DE MENÚS
 
@@ -66,7 +67,7 @@ Si el cliente pregunta sobre menús o precios, llama a getMenuInfo y léele los 
 2. sendGroupLink → Enviar SMS con enlace web para grupo/evento. Params: nombre
 3. checkAvailability → Consultar disponibilidad. Params: fecha, hora, personas, event_type
 4. getMenuInfo → Obtener menús y precios. Sin params.
-5. cancelReservation → Cancelar reserva. Params: reservation_id
+5. cancelReservation → Cancelar reserva. Params: reservation_id (código de 4 dígitos)
 
 ## INFORMACIÓN DEL RESTAURANTE
 - Nombre: Canal Olímpico

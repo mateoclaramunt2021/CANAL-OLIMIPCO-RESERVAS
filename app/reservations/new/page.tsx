@@ -170,7 +170,7 @@ export default async function NewReservation({ searchParams }: { searchParams: P
           <ul style={{ fontSize: '12px', color: '#5c7caa', margin: 0, paddingLeft: '16px', lineHeight: 1.8 }}>
             <li>Para <strong>reserva normal</strong>, se asigna mesa automáticamente</li>
             <li>Para <strong>grupos/eventos</strong>, selecciona un menú y se generará enlace de pago Stripe (40% señal)</li>
-            <li>El cliente recibirá confirmación por WhatsApp automáticamente</li>
+            <li>El cliente recibirá confirmación por SMS automáticamente</li>
           </ul>
         </div>
       </div>

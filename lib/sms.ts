@@ -103,9 +103,9 @@ export async function sendReservationConfirmationSMS(
     `Fecha: ${fechaFormateada}`,
     `Hora: ${hora}h`,
     `Personas: ${personas}`,
-    ref ? `Ref: ${ref}` : '',
+    ref ? `Tu codigo de reserva: ${ref}` : '',
     ``,
-    `Para cancelar o modificar, llama al 930 347 246 (min 72h antes).`,
+    `Para cancelar, llama al 930 347 246 y di tu codigo (min 72h antes).`,
     ``,
     `Te esperamos!`,
   ].filter(Boolean).join('\n')

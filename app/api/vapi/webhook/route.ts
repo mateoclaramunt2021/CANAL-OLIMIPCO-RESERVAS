@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sanitize } from '@/lib/security'
 import { notifyVapiCallEnded } from '@/lib/telegram'
-import { sendGroupReservationLinkSMS } from '@/lib/sms'
+import { sendGroupReservationLinkSMS, sendSMS } from '@/lib/sms'
 
 // ─── VAPI Server URL / Webhook ──────────────────────────────────────────────
 // Este endpoint recibe las function calls de VAPI y los end-of-call reports.
@@ -287,25 +287,28 @@ async function handleGetMenuInfo() {
 
 // ─── Handler: Cancelar Reserva ───────────────────────────────────────────────
 async function handleCancelReservation(params: Record<string, any>) {
-  const { reservation_id, telefono } = params
+  const { reservation_id } = params
 
   if (!reservation_id) {
     return NextResponse.json({
-      result: 'Necesito la referencia de la reserva para cancelarla. Pide al cliente que te dé el número de referencia que recibió por WhatsApp.',
+      result: 'Necesito el código de reserva para cancelarla. Pide al cliente que te diga los 4 números que recibió por SMS.',
     })
   }
 
   try {
-    // Buscar la reserva
-    const { data: reservation, error } = await supabaseAdmin
+    // Buscar por reservation_number (código de 4 dígitos)
+    const { data: reservations, error } = await supabaseAdmin
       .from('reservations')
       .select('*')
-      .eq('id', reservation_id)
-      .single()
+      .eq('reservation_number', String(reservation_id).trim())
+      .in('status', ['HOLD_BLOCKED', 'CONFIRMED', 'PENDING_PAYMENT'])
+      .limit(1)
+
+    const reservation = reservations?.[0]
 
     if (error || !reservation) {
       return NextResponse.json({
-        result: `No se ha encontrado ninguna reserva con esa referencia. Pide al cliente que compruebe el número de referencia.`,
+        result: 'No he encontrado ninguna reserva activa con ese código. Pide al cliente que compruebe los 4 números de su SMS de confirmación.',
       })
     }
 
@@ -319,14 +322,32 @@ async function handleCancelReservation(params: Record<string, any>) {
     await supabaseAdmin
       .from('reservations')
       .update({ status: 'CANCELED', canceled_reason: 'Cancelada por llamada telefónica' })
-      .eq('id', reservation_id)
+      .eq('id', reservation.id)
+
+    // Enviar SMS de confirmación de cancelación
+    const phone = reservation.telefono
+    if (phone) {
+      const [y, m, d] = (reservation.fecha || '').split('-')
+      const dateObj = new Date(Number(y), Number(m) - 1, Number(d))
+      const fechaFormateada = dateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+
+      sendSMS(phone, [
+        'Canal Olimpico - Reserva Cancelada',
+        '',
+        `Hola ${reservation.nombre || 'Cliente'}!`,
+        `Tu reserva del ${fechaFormateada} a las ${reservation.hora_inicio || ''}h ha sido cancelada.`,
+        '',
+        'Si ha sido un error, llamanos al 930 347 246.',
+        'Un saludo!',
+      ].join('\n')).catch(err => console.error('[VAPI] Error enviando SMS cancelación:', err))
+    }
 
     // Comprobar si era evento para avisar de la señal
     const isEvento = reservation.event_type && reservation.event_type !== 'RESERVA_NORMAL'
     const avisoSenal = isEvento ? ' Si la cancelación es con menos de setenta y dos horas de antelación, se pierde la señal.' : ''
 
     return NextResponse.json({
-      result: `Reserva cancelada correctamente. Se enviará confirmación por SMS.${avisoSenal} Despídete amablemente.`,
+      result: `Reserva cancelada correctamente. Le he enviado un SMS de confirmación.${avisoSenal} Despídete amablemente.`,
     })
   } catch (err) {
     console.error('[VAPI] Error cancelando reserva:', err)
