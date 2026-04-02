@@ -78,18 +78,21 @@ export async function POST(req: NextRequest) {
 
     // ── Tool Calls de VAPI (formato nuevo: tool-calls) ──
     if (messageType === 'tool-calls') {
-      const toolCalls = payload.message.toolCallList || []
-      console.log(`[VAPI] Tool calls: ${toolCalls.length} calls`, toolCalls.map((t: any) => t.function?.name))
+      const toolCalls = payload.message.toolCallList || payload.message.toolWithToolCallList || []
+      console.log(`[VAPI] Tool calls: ${toolCalls.length} calls`, JSON.stringify(toolCalls.map((t: any) => t.function?.name || t.name || t.toolCall?.name)))
 
       const results = []
       for (const toolCall of toolCalls) {
-        const name = toolCall.function?.name || toolCall.name
-        const parameters = toolCall.function?.arguments || toolCall.parameters || {}
-        const toolCallId = toolCall.id
+        // VAPI puede enviar en dos formatos:
+        // toolCallList: { id, name, parameters }
+        // toolWithToolCallList: { name, toolCall: { id, parameters } }
+        const name = toolCall.function?.name || toolCall.name || toolCall.toolCall?.name
+        const parameters = toolCall.function?.arguments || toolCall.parameters || toolCall.toolCall?.parameters || {}
+        const toolCallId = toolCall.id || toolCall.toolCall?.id
 
         console.log(`[VAPI] Processing tool call: ${name}`, parameters)
         const result = await routeFunctionCall(name, parameters, payload)
-        results.push({ toolCallId, result: result.result })
+        results.push({ name, toolCallId, result: result.result })
       }
 
       return NextResponse.json({ results })
