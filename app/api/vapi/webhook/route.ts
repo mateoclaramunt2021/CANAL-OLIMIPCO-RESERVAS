@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sanitize } from '@/lib/security'
 import { notifyVapiCallEnded } from '@/lib/telegram'
+import { sendGroupReservationLinkSMS } from '@/lib/sms'
 
 // ─── VAPI Server URL / Webhook ──────────────────────────────────────────────
 // Este endpoint recibe las function calls de VAPI y los end-of-call reports.
 // Configúralo en VAPI como "Server URL" del asistente.
 //
 // Functions disponibles para el asistente VAPI:
-//   1. createReservation  → Crea una reserva nueva
+//   1. createReservation  → Crea una reserva normal (1-6 pers)
 //   2. checkAvailability  → Consulta disponibilidad para fecha/hora
 //   3. getMenuInfo        → Devuelve info de menús disponibles
 //   4. cancelReservation  → Cancela una reserva por referencia
+//   5. sendGroupLink      → Envía SMS con enlace web para reserva de grupo
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'
@@ -35,6 +37,8 @@ export async function POST(req: NextRequest) {
           return await handleGetMenuInfo()
         case 'cancelReservation':
           return await handleCancelReservation(parameters)
+        case 'sendGroupLink':
+          return await handleSendGroupLink(parameters, payload)
         default:
           return NextResponse.json({ result: `Función ${name} no reconocida` })
       }
@@ -137,14 +141,10 @@ async function handleCreateReservation(
       })
     }
 
-    const isEvento = params.event_type && params.event_type !== 'RESERVA_NORMAL'
-    const refText = data.reservation_id ? `La referencia es ${data.reservation_id}.` : ''
-    const pagoText = data.stripe_url
-      ? 'Se le enviará un email con el enlace para pagar la señal.'
-      : 'Se le enviará un email de confirmación.'
+    const refText = data.reservation_number || data.reservation_id || ''
 
     return NextResponse.json({
-      result: `Reserva creada correctamente. ${refText} ${isEvento ? pagoText : 'Se le enviará confirmación por email.'} Despídete de forma cálida.`,
+      result: `Reserva creada correctamente. La referencia es ${refText}. Le acabo de enviar un SMS de confirmación a su teléfono. Despídete de forma cálida.`,
     })
   } catch (err) {
     console.error('[VAPI] Error creando reserva:', err)
@@ -272,12 +272,56 @@ async function handleCancelReservation(params: Record<string, any>) {
     const avisoSenal = isEvento ? ' Si la cancelación es con menos de setenta y dos horas de antelación, se pierde la señal.' : ''
 
     return NextResponse.json({
-      result: `Reserva cancelada correctamente. Se enviará confirmación por WhatsApp.${avisoSenal} Despídete amablemente.`,
+      result: `Reserva cancelada correctamente. Se enviará confirmación por SMS.${avisoSenal} Despídete amablemente.`,
     })
   } catch (err) {
     console.error('[VAPI] Error cancelando reserva:', err)
     return NextResponse.json({
       result: 'Hubo un error al cancelar la reserva. Por favor, inténtalo más tarde.',
+    })
+  }
+}
+
+// ─── Handler: Enviar enlace SMS para reserva de grupo ────────────────────────
+// Cuando el cliente quiere reservar para grupo/evento, en vez de hacer todo
+// por teléfono, le enviamos un SMS con un enlace a la web donde puede
+// completarlo cómodamente (elegir menú, pagar señal, etc.)
+async function handleSendGroupLink(
+  params: Record<string, any>,
+  vapiPayload: any
+) {
+  const { nombre } = params
+
+  // Obtener teléfono del caller ID de Twilio/VAPI
+  const callerNumber = vapiPayload.message?.call?.customer?.number || params.telefono || null
+
+  if (!callerNumber) {
+    return NextResponse.json({
+      result: 'No tengo el número de teléfono del cliente. Pídele su número para poder enviarle el enlace por SMS.',
+    })
+  }
+
+  const safeName = nombre ? sanitize(String(nombre)) : 'Cliente'
+
+  try {
+    const sent = await sendGroupReservationLinkSMS(callerNumber, {
+      nombre: safeName,
+      phone: callerNumber,
+    })
+
+    if (sent) {
+      return NextResponse.json({
+        result: `Perfecto. Le acabo de enviar un SMS al ${callerNumber} con un enlace para completar la reserva de grupo. Ahí podrá elegir el menú, la fecha, el número de personas y pagar la señal cómodamente desde el móvil. Despídete de forma cálida y dile que si tiene dudas puede volver a llamar.`,
+      })
+    } else {
+      return NextResponse.json({
+        result: 'No se ha podido enviar el SMS. Dile al cliente que puede entrar directamente en canalolimpicorestaurante.com para hacer la reserva de grupo, o que vuelva a intentarlo.',
+      })
+    }
+  } catch (err) {
+    console.error('[VAPI] Error enviando SMS grupo:', err)
+    return NextResponse.json({
+      result: 'Hubo un error técnico al enviar el SMS. Dile al cliente que puede entrar en la web canalolimpicorestaurante.com para hacer la reserva de grupo.',
     })
   }
 }

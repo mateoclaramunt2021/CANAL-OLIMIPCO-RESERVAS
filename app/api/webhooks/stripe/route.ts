@@ -6,6 +6,7 @@ import { sendPaymentConfirmation } from '@/lib/email'
 import { notifyPaymentReceived } from '@/lib/telegram'
 import { sendText } from '@/lib/whatsapp'
 import { menuRequiresSelection } from '@/core/menus'
+import { sendPaymentConfirmationSMS } from '@/lib/sms'
 
 // ─── POST: Webhook de Stripe ────────────────────────────────────────────────
 // Cuando el cliente paga la señal del 40%, Stripe nos avisa aquí.
@@ -63,13 +64,33 @@ export async function POST(req: NextRequest) {
             status: 'completed',
           })
 
-        // 3. Leer datos de la reserva para enviar email
+        // 3. Leer datos de la reserva para enviar confirmaciones
         const { data: reservation } = await supabaseAdmin
           .from('reservations')
           .select('*')
           .eq('id', reservationId)
           .single()
 
+        // 3a. SMS al cliente (canal principal)
+        if (reservation && reservation.customer_phone) {
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'
+          let dishUrl: string | null = null
+          if (reservation.menu_code && menuRequiresSelection(reservation.menu_code) && reservation.dish_selection_token) {
+            dishUrl = `${siteUrl}/elegir-platos/${reservation.dish_selection_token}`
+          }
+
+          sendPaymentConfirmationSMS(reservation.customer_phone, {
+            nombre: reservation.customer_name || 'Cliente',
+            fecha: reservation.fecha,
+            hora: reservation.hora_inicio,
+            personas: reservation.personas,
+            deposit: session.amount_total! / 100,
+            reservationNumber: reservation.reservation_number,
+            dishSelectionUrl: dishUrl,
+          }).catch(err => console.error('[stripe-webhook] SMS confirmation error:', err))
+        }
+
+        // 3b. Email al cliente (secundario)
         if (reservation && reservation.customer_email) {
           await sendPaymentConfirmation(reservation.customer_email, {
             nombre: reservation.customer_name || 'Cliente',
@@ -94,7 +115,7 @@ export async function POST(req: NextRequest) {
           amount: session.amount_total! / 100,
         }).catch(err => console.error('[stripe-webhook] Telegram error:', err))
 
-        // 5. WhatsApp: send dish selection link if menu requires it
+        // 5. WhatsApp: send dish selection link if menu requires it (legacy/fallback)
         if (reservation && reservation.customer_phone && reservation.menu_code &&
             menuRequiresSelection(reservation.menu_code) && reservation.dish_selection_token) {
           const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'

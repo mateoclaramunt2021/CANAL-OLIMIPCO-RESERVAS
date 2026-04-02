@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { findBestTable } from '@/core/tables'
 import { checkMinAdvance, calculateQuote, findMenu, PAYMENT_DEADLINE_DAYS, canCancel } from '@/core/menus'
-import { sendReservationConfirmation, sendPaymentLink, sendBankTransferPayment, notifyRestaurantNewReservation } from '@/lib/email'
-import { getStripe } from '@/lib/stripe'
+import { sendReservationConfirmation, sendBankTransferPayment, notifyRestaurantNewReservation } from '@/lib/email'
 import { sanitize, sanitizeObject, isValidPhone, isBot, isTooFast } from '@/lib/security'
 import { notifyNewReservation } from '@/lib/telegram'
+import { sendReservationConfirmationSMS, sendBankTransferSMS } from '@/lib/sms'
 
 // ─── Generar número de reserva secuencial ────────────────────────────────────
 // Formato: CO-YYYYMMDD-NNN (ej: CO-20260301-001)
@@ -51,8 +51,9 @@ const EVENT_TYPES_REQUIRING_PAYMENT = [
   'NOCTURNA_EXCLUSIVA',
 ]
 
-// Estos tipos usan transferencia bancaria en vez de Stripe
+// Todos los eventos usan transferencia bancaria
 const BANK_TRANSFER_EVENT_TYPES = [
+  'INFANTIL_CUMPLE',
   'GRUPO_SENTADO',
   'GRUPO_PICA_PICA',
   'NOCTURNA_EXCLUSIVA',
@@ -63,8 +64,8 @@ const ACTIVE_STATUSES = ['HOLD_BLOCKED', 'CONFIRMED']
 const VALID_CAKE_CHOICES = ['oreo', 'kinder', 'nutella', 'sin_gluten'] as const
 
 // ─── POST: Crear reserva ────────────────────────────────────────────────────
-// RESERVA_NORMAL → asigna mesa + WhatsApp confirmación directa
-// GRUPO/EVENTO → calcula total + señal 40% + genera link Stripe + WhatsApp con link
+// RESERVA_NORMAL → asigna mesa + SMS confirmación directa
+// GRUPO/EVENTO → calcula total + señal 40% + SMS con datos transferencia bancaria
 
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>
@@ -287,9 +288,8 @@ export async function POST(req: NextRequest) {
       source: 'web',
     }).catch(err => console.error('[reservations POST] Telegram error:', err))
 
-    // ── Post-creación: Email automático ──
-    let stripeUrl: string | null = null
-    let emailStatus = { clientEmail: false, restaurantEmail: false, error: '' }
+    // ── Post-creación: SMS al cliente + Email al restaurante ──
+    let emailStatus = { clientEmail: false, restaurantEmail: false, smsSent: false, error: '' }
 
     // → Email al restaurante siempre
     try {
@@ -312,7 +312,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (event_type === 'RESERVA_NORMAL') {
-      // → Email de confirmación directa
+      // → SMS de confirmación al cliente (canal principal)
+      if (safePhone) {
+        try {
+          const smsSent = await sendReservationConfirmationSMS(safePhone, {
+            nombre: safeName,
+            fecha: fecha!,
+            hora: hora!,
+            personas: personas!,
+            reservationNumber,
+          })
+          emailStatus.smsSent = smsSent
+        } catch (err: any) {
+          console.error('[reservations POST] ❌ SMS error:', err?.message || err)
+          emailStatus.error += `SMS: ${err?.message || 'Error'}. `
+        }
+      }
+
+      // → Email de confirmación (secundario, solo si hay email)
       if (safeEmail) {
         try {
           await sendReservationConfirmation(safeEmail, {
@@ -328,96 +345,47 @@ export async function POST(req: NextRequest) {
           emailStatus.clientEmail = true
         } catch (err: any) {
           console.error('[reservations POST] ❌ Client email error:', err?.message || err)
-          emailStatus.error += `Cliente: ${err?.message || 'Error'}. `
+          emailStatus.error += `Email: ${err?.message || 'Error'}. `
         }
-      } else {
-        console.warn('[reservations POST] ⚠️ Sin email del cliente, no se envía confirmación')
-        emailStatus.error += 'Sin email del cliente. '
       }
 
     } else if (deposit_amount && deposit_amount > 0) {
-      const useBankTransfer = event_type && BANK_TRANSFER_EVENT_TYPES.includes(event_type)
+      // → Todos los eventos van por transferencia bancaria
 
-      if (useBankTransfer) {
-        // → Transferencia bancaria para grupos
-        if (safeEmail) {
-          try {
-            await sendBankTransferPayment(safeEmail, {
-              nombre: safeName,
-              fecha: fecha!,
-              hora: hora!,
-              personas: personas!,
-              menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
-              total: total_amount!,
-              deposit: deposit_amount,
-              deadlineDays: PAYMENT_DEADLINE_DAYS,
-              reservationId,
-              reservationNumber,
-            })
-            emailStatus.clientEmail = true
-          } catch (err: any) {
-            console.error('[reservations POST] ❌ Bank transfer email error:', err?.message || err)
-            emailStatus.error += `Email transferencia: ${err?.message || 'Error'}. `
-          }
-        }
-      } else {
-        // → Generar link de Stripe (INFANTIL_CUMPLE u otros)
+      // SMS con datos de transferencia al cliente
+      if (safePhone) {
         try {
-          const stripe = getStripe()
-          const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [{
-              price_data: {
-                currency: 'eur',
-                product_data: {
-                  name: `Señal Reserva — ${findMenu(menu_code!)?.name || 'Evento'}`,
-                  description: `${personas} personas, ${fecha} ${hora}h`,
-                },
-                unit_amount: Math.round(deposit_amount * 100),
-              },
-              quantity: 1,
-            }],
-            mode: 'payment',
-            success_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://canal-olimpico.vercel.app'}/cancel`,
-            metadata: { reservation_id: reservationId },
-            expires_at: Math.floor(Date.now() / 1000) + (PAYMENT_DEADLINE_DAYS * 24 * 60 * 60),
+          const smsSent = await sendBankTransferSMS(safePhone, {
+            nombre: safeName,
+            deposit: deposit_amount,
+            reservationNumber,
           })
+          emailStatus.smsSent = smsSent
+        } catch (err: any) {
+          console.error('[reservations POST] ❌ SMS bank transfer error:', err?.message || err)
+          emailStatus.error += `SMS transferencia: ${err?.message || 'Error'}. `
+        }
+      }
 
-          stripeUrl = session.url
-
-          // Guardar URL en la reserva
-          await supabaseAdmin
-            .from('reservations')
-            .update({ stripe_checkout_url: session.url, stripe_session_id: session.id })
-            .eq('id', reservationId)
-
-          // Enviar Email con link de pago
-          if (safeEmail) {
-            try {
-              await sendPaymentLink(safeEmail, {
-                nombre: safeName,
-                fecha: fecha!,
-                hora: hora!,
-                personas: personas!,
-                menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
-                total: total_amount!,
-                deposit: deposit_amount,
-                paymentUrl: session.url!,
-                deadlineDays: PAYMENT_DEADLINE_DAYS,
-                reservationId,
-                reservationNumber,
-              })
-              emailStatus.clientEmail = true
-            } catch (err: any) {
-              console.error('[reservations POST] ❌ Email payment error:', err?.message || err)
-              emailStatus.error += `Email pago: ${err?.message || 'Error'}. `
-            }
-          }
-
-        } catch (stripeErr) {
-          console.error('[reservations POST] Stripe error:', stripeErr)
-          // La reserva se creó, pero no se generó Stripe. No es fatal.
+      // Email con datos de transferencia (secundario)
+      if (safeEmail) {
+        try {
+          await sendBankTransferPayment(safeEmail, {
+            nombre: safeName,
+            fecha: fecha!,
+            hora: hora!,
+            personas: personas!,
+            menuName: findMenu(menu_code!)?.name || 'Menú seleccionado',
+            total: total_amount!,
+            deposit: deposit_amount,
+            deadlineDays: PAYMENT_DEADLINE_DAYS,
+            reservationId,
+            reservationNumber,
+          })
+          emailStatus.clientEmail = true
+        } catch (err: any) {
+          console.error('[reservations POST] ❌ Bank transfer email error:', err?.message || err)
+          emailStatus.error += `Email transferencia: ${err?.message || 'Error'}. `
         }
       }
     }
@@ -426,13 +394,13 @@ export async function POST(req: NextRequest) {
       ok: true,
       reservation_id: reservationId,
       reservation_number: reservationNumber,
+      sms_sent: emailStatus.smsSent,
       message: event_type === 'RESERVA_NORMAL'
-        ? `Reserva ${reservationNumber || reservationId.substring(0, 8)} confirmada.${emailStatus.clientEmail ? ' Email de confirmación enviado.' : ' ⚠️ Email no enviado.'}`
-        : `Reserva ${reservationNumber || reservationId.substring(0, 8)} creada.${emailStatus.clientEmail ? (event_type && BANK_TRANSFER_EVENT_TYPES.includes(event_type) ? ` Email con datos de transferencia enviado (señal ${deposit_amount}€).` : ` Email con link de pago enviado (señal ${deposit_amount}€).`) : ' ⚠️ Email de pago no enviado.'}`,
+        ? `Reserva ${reservationNumber || reservationId.substring(0, 8)} confirmada.${emailStatus.smsSent ? ' SMS de confirmación enviado.' : ''}${emailStatus.clientEmail ? ' Email enviado.' : ''}`
+        : `Reserva ${reservationNumber || reservationId.substring(0, 8)} creada.${emailStatus.smsSent ? ' SMS enviado.' : ''}${emailStatus.clientEmail ? ' Email enviado.' : ''}${deposit_amount ? ` Señal: ${deposit_amount}€ (transferencia).` : ''}`,
       table_id: table_id,
       total_amount,
       deposit_amount,
-      stripe_url: stripeUrl,
       payment_deadline: reservationData.payment_deadline,
       email_sent: emailStatus.clientEmail,
       restaurant_email_sent: emailStatus.restaurantEmail,

@@ -33,10 +33,15 @@ const MENUS: Record<string, { code: string; name: string; price: number }[]> = {
 // Collect all unique menus for the select
 const ALL_MENUS = Object.values(MENUS).flat().filter((m, i, arr) => arr.findIndex(x => x.code === m.code) === i)
 
-export default async function NewReservation({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function NewReservation({ searchParams }: { searchParams: Promise<{ error?: string; nombre?: string; telefono?: string; mode?: string }> }) {
   const params = await searchParams
 
   const today = new Date().toISOString().split('T')[0]
+
+  // Si viene de un SMS de grupo, precargar datos
+  const isEventMode = params.mode === 'evento'
+  const prefillNombre = params.nombre || ''
+  const prefillTelefono = params.telefono?.replace('+34', '') || ''
 
   return (
     <DashboardLayout>
@@ -55,6 +60,13 @@ export default async function NewReservation({ searchParams }: { searchParams: P
           </div>
         )}
 
+        {isEventMode && (
+          <div style={{ marginBottom: '16px', padding: '16px', borderRadius: '12px', border: '1px solid #d0dfff', background: 'linear-gradient(135deg, #f0f5ff, #e8f0fe)', fontSize: '14px' }}>
+            <p style={{ fontWeight: 600, color: '#2c5282', marginBottom: '4px' }}>🎉 Reserva de Grupo / Evento</p>
+            <p style={{ color: '#4a6fa5', margin: 0 }}>Elige el tipo de evento, menú, fecha y personas. Al finalizar podrás pagar la señal (40%) con tarjeta.</p>
+          </div>
+        )}
+
         <form method="POST" action="/api/reservations/form" style={{ background: '#faf9f6', border: '1px solid #e8e2d6', borderRadius: '16px', padding: '24px' }}>
 
           {/* Section 1: Event Type */}
@@ -62,7 +74,7 @@ export default async function NewReservation({ searchParams }: { searchParams: P
             <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '20px', fontWeight: 400, color: '#1a1a1a', marginBottom: '12px' }}>
               1. Tipo de reserva
             </h2>
-            <select name="event_type" required style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }}>
+            <select name="event_type" required defaultValue={isEventMode ? 'GRUPO_SENTADO' : 'RESERVA_NORMAL'} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }}>
               {EVENT_TYPES.map(et => (
                 <option key={et.value} value={et.value}>{et.label} — {et.desc}</option>
               ))}
@@ -127,14 +139,14 @@ export default async function NewReservation({ searchParams }: { searchParams: P
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#8a8578', display: 'block', marginBottom: '4px' }}>Nombre *</label>
-                <input name="nombre" type="text" required placeholder="Nombre completo" minLength={2}
+                <input name="nombre" type="text" required placeholder="Nombre completo" minLength={2} defaultValue={prefillNombre}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#8a8578', display: 'block', marginBottom: '4px' }}>Teléfono *</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <span style={{ padding: '10px 12px', background: '#f0ebe3', borderRadius: '10px', fontSize: '14px', color: '#8a8578', border: '1px solid #d4c9b0' }}>+34</span>
-                  <input name="telefono" type="tel" required placeholder="640 079 411" minLength={6}
+                  <input name="telefono" type="tel" required placeholder="640 079 411" minLength={6} defaultValue={prefillTelefono}
                     style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid #d4c9b0', fontSize: '14px', color: '#1a1a1a', background: '#fff', boxSizing: 'border-box' }} />
                 </div>
               </div>
