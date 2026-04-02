@@ -18,37 +18,81 @@ import { sendGroupReservationLinkSMS } from '@/lib/sms'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://canalolimpicorestaurante.com'
 
+// ─── Router central de funciones ─────────────────────────────────────────────
+// Acepta tanto nombres en inglés (prompt) como en español (VAPI dashboard)
+async function routeFunctionCall(
+  name: string,
+  parameters: Record<string, any>,
+  vapiPayload: any
+): Promise<{ result: string }> {
+  switch (name) {
+    case 'createReservation':
+    case 'crear_reserva':
+    case 'agendar_reunion': {
+      const res = await handleCreateReservation(parameters, vapiPayload)
+      const data = await res.json()
+      return { result: data.result }
+    }
+    case 'checkAvailability':
+    case 'comprobar_disponibilidad': {
+      const res = await handleCheckAvailability(parameters)
+      const data = await res.json()
+      return { result: data.result }
+    }
+    case 'getMenuInfo':
+    case 'obtener_menu': {
+      const res = await handleGetMenuInfo()
+      const data = await res.json()
+      return { result: data.result }
+    }
+    case 'cancelReservation':
+    case 'cancelar_reserva': {
+      const res = await handleCancelReservation(parameters)
+      const data = await res.json()
+      return { result: data.result }
+    }
+    case 'sendGroupLink':
+    case 'enviar_enlace_grupo': {
+      const res = await handleSendGroupLink(parameters, vapiPayload)
+      const data = await res.json()
+      return { result: data.result }
+    }
+    default:
+      console.error(`[VAPI] Función no reconocida: ${name}`)
+      return { result: `Función ${name} no reconocida` }
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const payload = await req.json()
     const messageType = payload.message?.type
 
-    // ── Function Call de VAPI ──
+    // ── Function Call de VAPI (formato antiguo: function-call) ──
     if (messageType === 'function-call') {
       const { name, parameters } = payload.message.functionCall
       console.log(`[VAPI] Function call: ${name}`, parameters)
+      const result = await routeFunctionCall(name, parameters, payload)
+      return NextResponse.json(result)
+    }
 
-      switch (name) {
-        case 'createReservation':
-        case 'crear_reserva':
-        case 'agendar_reunion':
-          return await handleCreateReservation(parameters, payload)
-        case 'checkAvailability':
-        case 'comprobar_disponibilidad':
-          return await handleCheckAvailability(parameters)
-        case 'getMenuInfo':
-        case 'obtener_menu':
-          return await handleGetMenuInfo()
-        case 'cancelReservation':
-        case 'cancelar_reserva':
-          return await handleCancelReservation(parameters)
-        case 'sendGroupLink':
-        case 'enviar_enlace_grupo':
-          return await handleSendGroupLink(parameters, payload)
-        default:
-          console.error(`[VAPI] Función no reconocida: ${name}`)
-          return NextResponse.json({ result: `Función ${name} no reconocida` })
+    // ── Tool Calls de VAPI (formato nuevo: tool-calls) ──
+    if (messageType === 'tool-calls') {
+      const toolCalls = payload.message.toolCallList || []
+      console.log(`[VAPI] Tool calls: ${toolCalls.length} calls`, toolCalls.map((t: any) => t.function?.name))
+
+      const results = []
+      for (const toolCall of toolCalls) {
+        const name = toolCall.function?.name || toolCall.name
+        const parameters = toolCall.function?.arguments || toolCall.parameters || {}
+        const toolCallId = toolCall.id
+
+        console.log(`[VAPI] Processing tool call: ${name}`, parameters)
+        const result = await routeFunctionCall(name, parameters, payload)
+        results.push({ toolCallId, result: result.result })
       }
+
+      return NextResponse.json({ results })
     }
 
     // ── End of Call Report ──
