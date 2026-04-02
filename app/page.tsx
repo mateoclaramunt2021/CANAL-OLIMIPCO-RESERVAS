@@ -109,7 +109,7 @@ const EVENT_ICONS: Record<string, () => React.JSX.Element> = {
 
 /* ─── FAQ data ────────────────────────────────────────────────────────────── */
 const FAQ_DATA = [
-  { q: '¿Cuál es el horario del restaurante?', a: 'De lunes a viernes de 8:00 a 18:00h. Sábados y domingos de 9:00 a 18:00h. Para eventos nocturnos privados, consultar disponibilidad.' },
+  { q: '¿Cuál es el horario del restaurante?', a: 'Cocina non-stop de 8:00 a 21:00h todos los días. Para eventos nocturnos privados, consultar disponibilidad.' },
   { q: '¿Hay parking disponible?', a: 'Sí, disponemos de un amplio aparcamiento gratuito junto al restaurante, ideal para grupos grandes.' },
   { q: '¿Puedo reservar para más de 6 personas?', a: 'Por supuesto. Para grupos de 7 o más personas selecciona la opción "Grupo / Evento" en el formulario de reserva. Tenemos menús cerrados desde 29€/persona con todo incluido.' },
   { q: '¿Cómo funciona la señal para grupos?', a: 'Al reservar un evento o grupo se requiere una señal del 40% del total, que puedes pagar online de forma segura. Tienes 4 días para completar el pago desde la confirmación.' },
@@ -130,8 +130,8 @@ function generateTimeSlots(start: number, end: number, step: number): string[] {
   }
   return slots
 }
-const TIME_SLOTS_NORMAL = generateTimeSlots(8 * 60, 17 * 60 + 30, 30)
-const TIME_SLOTS_EVENT = generateTimeSlots(12 * 60, 22 * 60, 30)
+const TIME_SLOTS_NORMAL = generateTimeSlots(8 * 60, 20 * 60 + 30, 30)
+const TIME_SLOTS_EVENT = generateTimeSlots(8 * 60, 22 * 60, 30)
 
 /* ─── Hooks & Utils ───────────────────────────────────────────────────────── */
 function useReveal() {

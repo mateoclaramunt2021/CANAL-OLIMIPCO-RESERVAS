@@ -28,7 +28,7 @@ const MENUS: MenuOption[] = [
 
 function generateTimeSlots(): string[] {
   const slots: string[] = []
-  for (let m = 12 * 60; m <= 22 * 60; m += 30) {
+  for (let m = 8 * 60; m <= 22 * 60; m += 30) {
     const h = Math.floor(m / 60), mi = m % 60
     slots.push(`${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`)
   }
