@@ -30,16 +30,22 @@ export async function POST(req: NextRequest) {
 
       switch (name) {
         case 'createReservation':
+        case 'crear_reserva':
           return await handleCreateReservation(parameters, payload)
         case 'checkAvailability':
+        case 'comprobar_disponibilidad':
           return await handleCheckAvailability(parameters)
         case 'getMenuInfo':
+        case 'obtener_menu':
           return await handleGetMenuInfo()
         case 'cancelReservation':
+        case 'cancelar_reserva':
           return await handleCancelReservation(parameters)
         case 'sendGroupLink':
+        case 'enviar_enlace_grupo':
           return await handleSendGroupLink(parameters, payload)
         default:
+          console.error(`[VAPI] Función no reconocida: ${name}`)
           return NextResponse.json({ result: `Función ${name} no reconocida` })
       }
     }
