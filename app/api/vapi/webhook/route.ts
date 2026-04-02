@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       switch (name) {
         case 'createReservation':
         case 'crear_reserva':
+        case 'agendar_reunion':
           return await handleCreateReservation(parameters, payload)
         case 'checkAvailability':
         case 'comprobar_disponibilidad':
