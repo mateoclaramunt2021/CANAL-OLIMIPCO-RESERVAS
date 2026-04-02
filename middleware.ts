@@ -134,7 +134,10 @@ export function middleware(req: NextRequest) {
   }
 
   // ══ Protected dashboard paths — require sb-access-token cookie ══
-  if (PROTECTED_PATHS.some(p => pathname.startsWith(p))) {
+  // Allow /reservations/new publicly (SMS group link for clients)
+  if (pathname === '/reservations/new') {
+    // Public access — no auth needed
+  } else if (PROTECTED_PATHS.some(p => pathname.startsWith(p))) {
     const hasAuth = req.cookies.has('sb-access-token')
     if (!hasAuth) {
       const loginUrl = buildUrl('/login', req)
